@@ -1,19 +1,19 @@
-"""Curated SDK checks against the real bundled Zoom schema corpus.
+"""Curated golden SDK checks against the real bundled Zoom schema corpus.
 
 The focused SDK tests in `test_sdk.py` keep behavior isolated with a tiny
 temporary schema tree. This module complements them by sampling the actual
 bundled OpenAPI documents that ship with `zoompy`.
 
-These tests are intentionally small and opinionated. Their job is to catch
-obvious regressions in namespace generation, typed-model availability, and
-interactive discoverability across the real Zoom schema inventory.
+These tests are intentionally opinionated. Their job is to pin the public SDK
+surface that outside projects are expected to rely on, especially across the
+largest endpoint families.
 """
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from zoompy import ZoomClient
+from zoompy import ZoomClient, __version__
 
 
 def _build_client() -> ZoomClient:
@@ -91,3 +91,50 @@ def test_real_schema_sdk_common_method_names_are_stable() -> None:
         )
     finally:
         client.close()
+
+
+def test_real_schema_sdk_golden_matrix_for_major_families() -> None:
+    """Pin a broader set of stable public SDK methods across major families."""
+
+    client = _build_client()
+    try:
+        matrix = {
+            "users.list": client.users.list._operation.operation_id,
+            "users.get": client.users.get._operation.operation_id,
+            "phone.users.get": client.phone.users.get._operation.operation_id,
+            "phone.users.update_profile": (
+                client.phone.users.update_profile._operation.operation_id
+            ),
+            "meetings.meeting_summaries.list": (
+                client.meetings.meeting_summaries.list._operation.operation_id
+            ),
+            "chat.channels.get": client.chat.channels.get._operation.operation_id,
+            "rooms.update_profile": client.rooms.update_profile._operation.operation_id,
+            "scheduler.schedules.get": (
+                client.scheduler.schedules.get._operation.operation_id
+            ),
+            "whiteboard.get_whiteboard": (
+                client.whiteboard.get_whiteboard._operation.operation_id
+            ),
+        }
+    finally:
+        client.close()
+
+    assert matrix == {
+        "users.list": "users",
+        "users.get": "user",
+        "phone.users.get": "phoneUser",
+        "phone.users.update_profile": "updateUserProfile",
+        "meetings.meeting_summaries.list": "Listmeetingsummaries",
+        "chat.channels.get": "getUserLevelChannel",
+        "rooms.update_profile": "updateRoomProfile",
+        "scheduler.schedules.get": "get_schedule",
+        "whiteboard.get_whiteboard": "GetAWhiteboard",
+    }
+
+
+def test_package_exposes_a_stable_version_string() -> None:
+    """Expose an explicit package version for outside consumers to pin."""
+
+    assert isinstance(__version__, str)
+    assert __version__

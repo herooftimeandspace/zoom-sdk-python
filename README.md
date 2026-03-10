@@ -82,8 +82,11 @@ Compatibility policy:
 - additive namespaces and methods are allowed in minor releases
 - renaming or removing an existing public SDK method is a breaking change
 - schema syncs may add new methods as Zoom expands the API surface
+- generic parameter aliases that are not present in the schema are not part of
+  the SDK contract
 - breaking SDK changes should be called out explicitly in
   [CHANGELOG.md](./CHANGELOG.md)
+- package releases expose a version string at `zoompy.__version__`
 
 ### Token caching and Server-to-Server OAuth
 

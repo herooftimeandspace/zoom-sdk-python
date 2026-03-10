@@ -63,6 +63,7 @@ When contributing, treat these SDK behaviors as user-facing API:
 - normal typed return behavior for SDK calls
 - `.raw(...)`
 - pagination helpers like `iter_pages(...)`, `iter_all(...)`, and `paginate(...)`
+- do not introduce generic parameter aliases that are not present in the schema
 
 If you need to rename or remove a public SDK method, document the change in
 [CHANGELOG.md](./CHANGELOG.md) and treat it as a breaking change.

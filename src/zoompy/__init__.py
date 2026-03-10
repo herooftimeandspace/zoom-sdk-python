@@ -11,4 +11,12 @@ from .logging import configure_logging
 from .schema import WebhookRegistry
 from .sdk import ZoomSdk
 
-__all__ = ["ZoomClient", "ZoomSdk", "WebhookRegistry", "configure_logging"]
+__version__ = "0.1.0"
+
+__all__ = [
+    "ZoomClient",
+    "ZoomSdk",
+    "WebhookRegistry",
+    "configure_logging",
+    "__version__",
+]
