@@ -1,298 +1,84 @@
-
-
-"""Contract tests for Zoom QSS (Quality of Service Subscription) endpoints.
-
-Schema location (repo layout):
-    src/tests/schemas/accounts/qss.json
-
-These tests validate that any client implementation:
-- Calls the correct REST paths/methods.
-- Passes through query params as defined by the schema.
-- Returns JSON payloads that conform to the OpenAPI response schemas.
-- Raises on non-2xx responses.
-
-Yes, this is more strict than your average API client. That's the point.
-"""
+"""Schema-driven contract tests for the Zoom QSS endpoints."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-
-import json
+from typing import Any, Mapping
 
 import pytest
-from jsonschema import validate
-from jsonschema.exceptions import ValidationError
+
+from _openapi_contract import (
+    build_operation_cases,
+    get_request_callable,
+    load_openapi_spec,
+    run_operation_contract,
+    snake_case,
+    validate_response_examples,
+)
 
 
-SCHEMA_PATH = Path(__file__).parent / "schemas" / "accounts" / "qss.json"
-DEFAULT_BASE_URL = "https://api.zoom.us/v2"
+SPEC_PATH = Path(__file__).resolve().parent / "schemas" / "accounts" / "QSS.json"
+TITLE = "QSS"
+FIXTURE_NAME = "qss_client"
 
 
-# ----------------------------
-# Helpers: schema extraction
-# ----------------------------
+# Load the QSS schema document.
+@pytest.fixture
+def qss_spec() -> dict[str, Any]:
+    return load_openapi_spec(SPEC_PATH, TITLE)
 
 
-def _load_openapi() -> Dict[str, Any]:
-    if not SCHEMA_PATH.exists():
-        raise RuntimeError(
-            f"Schema file not found at {SCHEMA_PATH}. "
-            "Expected src/tests/schemas/accounts/qss.json"
-        )
-    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+# Turn the schema into ready-to-run operation cases.
+@pytest.fixture
+def qss_cases(qss_spec: dict[str, Any]):
+    cases = build_operation_cases(qss_spec)
+    if not cases:
+        raise AssertionError("No operations discovered in QSS OpenAPI spec.")
+    return cases
 
 
-def _schema_for(path: str, method: str, status: str) -> Dict[str, Any]:
-    doc = _load_openapi()
-    paths = doc.get("paths", doc)
-    op = paths[path][method.lower()]
-
-    resp = op["responses"][status]
-    content = resp.get("content")
-    if not content:
-        return {"type": "null"}
-    return content["application/json"]["schema"]
+# Confirm the schema file itself is the expected OpenAPI document.
+def test_qss_spec_is_openapi_3(qss_spec: dict[str, Any]) -> None:
+    assert qss_spec.get("openapi", "").startswith("3.")
+    assert qss_spec.get("info", {}).get("title") == TITLE
+    assert "paths" in qss_spec and isinstance(qss_spec["paths"], Mapping)
 
 
-# ----------------------------
-# Fake HTTP layer (fast unit tests)
-# ----------------------------
+# Operation IDs are required so case names stay understandable.
+def test_qss_operations_have_operation_ids(qss_cases) -> None:
+    assert not [case for case in qss_cases if not case.operation_id]
 
 
-@dataclass
-class FakeResponse:
-    status_code: int
-    payload: Any = None
-
-    def json(self) -> Any:
-        return self.payload
+# Validate example response payloads generated from the actual schema.
+def test_qss_embedded_json_schemas_validate(qss_cases, qss_spec: dict[str, Any]) -> None:
+    validate_response_examples(qss_spec, qss_cases)
 
 
-class FakeHTTPClient:
-    """Minimal http client interface for contract testing.
-
-    Your ZoomClient should accept an injected transport compatible with:
-        http_client.request(method, url, params=..., json=..., headers=...)
-
-    We record calls so tests can assert exact URLs/params.
-    """
-
-    def __init__(self) -> None:
-        self.calls: List[Tuple[str, str, Dict[str, Any], Any]] = []
-        self._queue: List[FakeResponse] = []
-
-    def queue(self, *responses: FakeResponse) -> None:
-        self._queue.extend(responses)
-
-    def request(
-        self,
-        method: str,
-        url: str,
-        params: Optional[Dict[str, Any]] = None,
-        json: Any = None,
-        headers: Optional[Dict[str, str]] = None,
-    ) -> FakeResponse:
-        self.calls.append((method.upper(), url, params or {}, json))
-        if not self._queue:
-            raise AssertionError("FakeHTTPClient has no queued responses")
-        return self._queue.pop(0)
+# Generate a separate pytest case for every schema operation.
+def pytest_generate_tests(metafunc: Any) -> None:
+    if "qss_case" in metafunc.fixturenames:
+        spec = load_openapi_spec(SPEC_PATH, TITLE)
+        cases = build_operation_cases(spec)
+        ids = [f"{snake_case(case.operation_id)}[{case.method} {case.path}]" for case in cases]
+        metafunc.parametrize("qss_case", cases, ids=ids)
 
 
-# ----------------------------
-# Fixtures
-# ----------------------------
-
-
-@pytest.fixture()
-def http() -> FakeHTTPClient:
-    return FakeHTTPClient()
-
-
-@pytest.fixture()
-def client(http: FakeHTTPClient):
-    """Client under test.
-
-    Contract:
-      - ZoomClient(token=..., base_url=..., http_client=...)
-      - Exposes `client.qss` with methods:
-          - list_meeting_participants_qos_summary(meeting_id, page_size=None, next_page_token=None)
-          - list_webinar_participants_qos_summary(webinar_id, page_size=None, next_page_token=None)
-          - list_videosdk_session_users_qos_summary(session_id, page_size=None, next_page_token=None)
-
-    If you want different method names, that's cute. Make the implementation match the tests.
-    """
-
-    try:
-        from zoompy.client import ZoomClient  # type: ignore
-    except Exception:
-        try:
-            from zoompy import ZoomClient  # type: ignore
-        except Exception as e:
-            raise AssertionError(
-                "Could not import ZoomClient. Expected `zoompy.client.ZoomClient` or `zoompy.ZoomClient`."
-            ) from e
-
-    return ZoomClient(token="test-token", base_url=DEFAULT_BASE_URL, http_client=http)
-
-
-# ----------------------------
-# Minimal valid payload factories
-# ----------------------------
-
-
-def _sample_participants_qos_summary_list() -> Dict[str, Any]:
-    # Keep it minimal: only fields that are very commonly present.
-    # The schema is permissive and mostly optional, but the pagination object usually exists.
-    return {
-        "page_size": 30,
-        "next_page_token": "",
-        "participants": [
-            {
-                "id": "zJKyaiAyTNC-MWjiWC18KQ",
-                "participant_id": "20161536",
-                "user_name": "someone",
-                "email": "user@example.com",
-                "qos": [
-                    {
-                        "type": "audio_input",
-                        "details": {
-                            "min_bitrate": "10kbps",
-                            "avg_bitrate": "20kbps",
-                            "max_bitrate": "30kbps",
-                        },
-                    }
-                ],
-            }
-        ],
-    }
-
-
-def _sample_session_users_qos_summary_list() -> Dict[str, Any]:
-    # Video SDK session users QoS Summary payload shape differs from meetings/webinars.
-    # We'll still keep it small and schema-friendly.
-    return {
-        "page_size": 30,
-        "next_page_token": "",
-        "users": [
-            {
-                "id": "user_1",
-                "name": "SDK User",
-                "qos": [
-                    {
-                        "type": "video_output",
-                        "details": {
-                            "min_bitrate": "100kbps",
-                            "avg_bitrate": "200kbps",
-                            "max_bitrate": "400kbps",
-                        },
-                    }
-                ],
-            }
-        ],
-    }
-
-
-# ----------------------------
-# Tests: Meeting participants QoS Summary
-# ----------------------------
-
-
-def test_list_meeting_participants_qos_summary_calls_expected_endpoint(client, http: FakeHTTPClient):
-    meeting_id = "4444AAAiAAAAAiAiAiiAii=="
-    payload = _sample_participants_qos_summary_list()
-    http.queue(FakeResponse(200, payload))
-
-    result = client.qss.list_meeting_participants_qos_summary(
-        meeting_id, page_size=10, next_page_token="tok"
+# Execute the shared contract logic for one QSS endpoint case.
+@pytest.mark.usefixtures("respx_mock")
+def test_qss_operation_contract(
+    qss_client: Any,
+    qss_spec: dict[str, Any],
+    qss_case,
+    respx_mock: Any,
+) -> None:
+    run_operation_contract(
+        request=get_request_callable(qss_client, FIXTURE_NAME),
+        spec=qss_spec,
+        case=qss_case,
+        respx_mock=respx_mock,
     )
 
-    assert http.calls, "Expected at least one HTTP call"
-    method, url, params, body = http.calls[0]
 
-    assert method == "GET"
-    assert url == f"{DEFAULT_BASE_URL}/metrics/meetings/{meeting_id}/participants/qos_summary"
-    assert body is None
-    assert params.get("page_size") == 10
-    assert params.get("next_page_token") == "tok"
-
-    schema = _schema_for("/metrics/meetings/{meetingId}/participants/qos_summary", "get", "200")
-    validate(instance=result, schema=schema)
-
-
-# ----------------------------
-# Tests: Webinar participants QoS Summary
-# ----------------------------
-
-
-def test_list_webinar_participants_qos_summary_calls_expected_endpoint(client, http: FakeHTTPClient):
-    webinar_id = "dx0bdThTSkWQHS2a2QL2Ig=="
-    payload = _sample_participants_qos_summary_list()
-    http.queue(FakeResponse(200, payload))
-
-    result = client.qss.list_webinar_participants_qos_summary(
-        webinar_id, page_size=10, next_page_token="tok"
-    )
-
-    method, url, params, body = http.calls[0]
-
-    assert method == "GET"
-    assert url == f"{DEFAULT_BASE_URL}/metrics/webinars/{webinar_id}/participants/qos_summary"
-    assert body is None
-    assert params.get("page_size") == 10
-    assert params.get("next_page_token") == "tok"
-
-    schema = _schema_for("/metrics/webinars/{webinarId}/participants/qos_summary", "get", "200")
-    validate(instance=result, schema=schema)
-
-
-# ----------------------------
-# Tests: Video SDK session users QoS Summary
-# ----------------------------
-
-
-def test_list_videosdk_session_users_qos_summary_calls_expected_endpoint(client, http: FakeHTTPClient):
-    session_id = "sess_123"
-    payload = _sample_session_users_qos_summary_list()
-    http.queue(FakeResponse(200, payload))
-
-    result = client.qss.list_videosdk_session_users_qos_summary(
-        session_id, page_size=10, next_page_token="tok"
-    )
-
-    method, url, params, body = http.calls[0]
-
-    assert method == "GET"
-    assert url == f"{DEFAULT_BASE_URL}/videosdk/sessions/{session_id}/users/qos_summary"
-    assert body is None
-    assert params.get("page_size") == 10
-    assert params.get("next_page_token") == "tok"
-
-    schema = _schema_for("/videosdk/sessions/{sessionId}/users/qos_summary", "get", "200")
-    validate(instance=result, schema=schema)
-
-
-# ----------------------------
-# Schema sanity checks
-# ----------------------------
-
-
-def test_meeting_qos_schema_rejects_garbage():
-    schema = _schema_for("/metrics/meetings/{meetingId}/participants/qos_summary", "get", "200")
-    with pytest.raises(ValidationError):
-        validate(instance={"lol": "nope"}, schema=schema)
-
-
-# ----------------------------
-# Error handling contract
-# ----------------------------
-
-
-@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429, 500])
-def test_qss_methods_raise_on_http_errors(client, http: FakeHTTPClient, status_code: int):
-    http.queue(FakeResponse(status_code, {"message": "nope"}))
-
-    with pytest.raises(Exception):
-        client.qss.list_meeting_participants_qos_summary("4444", page_size=10)
+# Provide a direct failure if the fixture is not callable as required.
+def test_qss_client_uses_callable_fixture(qss_client: Any) -> None:
+    assert callable(get_request_callable(qss_client, FIXTURE_NAME))

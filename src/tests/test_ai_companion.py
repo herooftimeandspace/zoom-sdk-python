@@ -1,211 +1,92 @@
+"""Schema-driven contract tests for the Zoom AI Companion endpoints.
 
+Future readers should think of this file as a thin adapter between one schema
+ file and the shared OpenAPI contract runner.
+"""
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-import httpx
 import pytest
-import respx
-from jsonschema import Draft202012Validator
 
-
-# Contract tests for the Zoom AI Companion API surface.
-#
-# Expected implementation shape (duck-typed):
-# - `zoompy.client.ZoomClient` exists.
-# - `ZoomClient(...).ai_companion` exists.
-# - `ai_companion` exposes one method per OpenAPI `operationId` in snake_case.
-# - Methods:
-#     * perform the correct HTTP request (method + path)
-#     * return decoded JSON (dict/list)
-#     * validate decoded JSON against the OpenAPI response schema
-#     * raise ValueError on schema mismatch
-
-
-SCHEMA_PATH = Path(__file__).resolve().parent / "schemas" / "workplace" / "AI Companion.json"
-BASE_URL = "https://api.zoom.us/v2"
-
-
-@dataclass(frozen=True)
-class OperationCase:
-    operation_id: str
-    method: str
-    path_template: str
-    status_code: int
-
-
-AIC_CASES: tuple[OperationCase, ...] = (
-    OperationCase(
-        operation_id="GetAICconversationarchives",
-        method="GET",
-        path_template="/aic/users/{userId}/conversation_archive",
-        status_code=200,
-    ),
+from _openapi_contract import (
+    build_operation_cases,
+    get_request_callable,
+    load_openapi_spec,
+    run_operation_contract,
+    snake_case,
+    validate_response_examples,
 )
 
 
-def _snake_case(name: str) -> str:
-    out: list[str] = []
-    for ch in name:
-        if ch.isupper() and out:
-            out.append("_")
-        out.append(ch.lower())
-    return "".join(out).replace("__", "_")
+SPEC_PATH = Path(__file__).resolve().parent / "schemas" / "workplace" / "AI Companion.json"
+TITLE = "AI Companion"
+FIXTURE_NAME = "ai_companion_client"
 
 
-def _load_openapi() -> dict[str, Any]:
-    if not SCHEMA_PATH.exists():
-        raise AssertionError(f"Missing schema file: {SCHEMA_PATH}")
-    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+# Load the AI Companion schema so the rest of the file has one canonical source
+# of truth for paths, parameters, and response shapes.
+@pytest.fixture
+def ai_companion_spec() -> dict[str, Any]:
+    return load_openapi_spec(SPEC_PATH, TITLE)
 
 
-def _get_operation(spec: Mapping[str, Any], path: str, method: str) -> Mapping[str, Any]:
-    paths = spec.get("paths")
-    assert isinstance(paths, Mapping), "OpenAPI spec must have a paths object"
-    item = paths.get(path)
-    assert isinstance(item, Mapping), f"OpenAPI spec missing path: {path}"
-    op = item.get(method.lower())
-    assert isinstance(op, Mapping), f"OpenAPI spec missing operation: {method.upper()} {path}"
-    return op
+# Convert the raw schema into concrete operation cases with example inputs.
+@pytest.fixture
+def ai_companion_cases(ai_companion_spec: dict[str, Any]):
+    cases = build_operation_cases(ai_companion_spec)
+    if not cases:
+        raise AssertionError("No operations discovered in AI Companion OpenAPI spec.")
+    return cases
 
 
-def _get_json_response_schema(
-    spec: Mapping[str, Any], path: str, method: str, status_code: int
-) -> Mapping[str, Any]:
-    op = _get_operation(spec, path, method)
-    responses = op.get("responses")
-    assert isinstance(responses, Mapping), "Operation.responses must be an object"
-    resp = responses.get(str(status_code))
-    assert isinstance(resp, Mapping), f"Missing documented {status_code} response"
-    content = resp.get("content")
-    assert isinstance(content, Mapping), f"{status_code} response must define content"
-    app_json = content.get("application/json")
-    assert isinstance(app_json, Mapping), f"{status_code} response must define application/json"
-    schema = app_json.get("schema")
-    assert isinstance(schema, Mapping), f"{status_code} response must define a JSON schema"
-    return schema
+# Confirm that we loaded the right kind of document before doing deeper checks.
+def test_ai_companion_spec_is_openapi_3(ai_companion_spec: dict[str, Any]) -> None:
+    assert ai_companion_spec.get("openapi", "").startswith("3.")
+    assert ai_companion_spec.get("info", {}).get("title") == TITLE
+    assert "paths" in ai_companion_spec and isinstance(ai_companion_spec["paths"], Mapping)
 
 
-def _render_path(path_template: str, **params: str) -> str:
-    out = path_template
-    for k, v in params.items():
-        out = out.replace("{" + k + "}", v)
-    return out
+# Operation IDs are required so parametrized tests remain understandable.
+def test_ai_companion_operations_have_operation_ids(ai_companion_cases) -> None:
+    assert not [case for case in ai_companion_cases if not case.operation_id]
 
 
-def _minimal_conversation_archive_response() -> dict[str, Any]:
-    # Taken from the schema examples; intentionally minimal but schema-valid.
-    return {
-        "user_id": "ABCDEF123456",
-        "email": "jchill@example.com",
-        "display_name": "Jill Chill",
-        "start_time": "2021-04-26T05:23:18Z",
-        "end_time": "2021-05-26T05:23:18Z",
-        "timezone": "Asia/Shanghai",
-        "aic_history_download_url": "https://aic.zoom.us/rest/v1/aic/archive/conversations/download/Qg75t7xZBtEbAkjdlgbfdngBBBB",
-        "file_extension": "JSON",
-        "file_size": 165743,
-        "file_type": "AIC_CONVERSATION",
-        "physical_files": [
-            {
-                "file_id": "pvKocCqVSMygaOcKus5Afw",
-                "file_name": "Screenshot 2025-02-12 at 10.42.27 AM.png",
-                "file_size": 540680,
-                "download_url": "https://aic.zoom.us/rest/v1/aic/archive/attached/download/HBAXbHc15BXbnq0JoDu6tc5MWlww9MAo9JJq2d14VAWkpcT5FEA.AK5calud4EJB7bMq",
-            }
-        ],
-    }
+# Validate generated example responses against the real schema definitions.
+def test_ai_companion_embedded_json_schemas_validate(
+    ai_companion_cases,
+    ai_companion_spec: dict[str, Any],
+) -> None:
+    validate_response_examples(ai_companion_spec, ai_companion_cases)
 
 
-@pytest.fixture(scope="module")
-def aic_spec() -> dict[str, Any]:
-    return _load_openapi()
+# Generate one pytest case per operation declared in the schema.
+def pytest_generate_tests(metafunc: Any) -> None:
+    if "ai_companion_case" in metafunc.fixturenames:
+        spec = load_openapi_spec(SPEC_PATH, TITLE)
+        cases = build_operation_cases(spec)
+        ids = [f"{snake_case(case.operation_id)}[{case.method} {case.path}]" for case in cases]
+        metafunc.parametrize("ai_companion_case", cases, ids=ids)
 
 
-def test_ai_companion_schema_sanity(aic_spec: Mapping[str, Any]) -> None:
-    assert aic_spec.get("openapi") == "3.0.0"
-    info = aic_spec.get("info")
-    assert isinstance(info, Mapping)
-    assert info.get("title") == "AI Companion"
-
-    servers = aic_spec.get("servers")
-    assert isinstance(servers, list) and servers
-    assert any(isinstance(s, Mapping) and s.get("url") == BASE_URL for s in servers)
-
-    # Ensure the documented path exists.
-    _get_operation(aic_spec, "/aic/users/{userId}/conversation_archive", "GET")
-
-
-def test_ai_companion_schema_embedded_json_schema_validates(aic_spec: Mapping[str, Any]) -> None:
-    schema = _get_json_response_schema(
-        aic_spec, "/aic/users/{userId}/conversation_archive", "GET", 200
-    )
-    Draft202012Validator.check_schema(schema)
-
-
-def test_ai_companion_client_surface_area_matches_operation_ids() -> None:
-    from zoompy.client import ZoomClient  # type: ignore
-
-    client = ZoomClient(base_url=BASE_URL, token="test")
-    aic = getattr(client, "ai_companion")
-
-    missing: list[str] = []
-    for case in AIC_CASES:
-        method_name = _snake_case(case.operation_id)
-        if not hasattr(aic, method_name):
-            missing.append(f"{case.operation_id} -> ai_companion.{method_name}()")
-
-    assert not missing, "Missing AI Companion endpoint methods:\n" + "\n".join(missing)
-
-
-@respx.mock
-def test_ai_companion_get_conversation_archives_contract(aic_spec: Mapping[str, Any]) -> None:
-    from zoompy.client import ZoomClient  # type: ignore
-
-    schema = _get_json_response_schema(
-        aic_spec, "/aic/users/{userId}/conversation_archive", "GET", 200
+# Exercise the implementation under test against one generated operation case.
+@pytest.mark.usefixtures("respx_mock")
+def test_ai_companion_operation_contract(
+    ai_companion_client: Any,
+    ai_companion_spec: dict[str, Any],
+    ai_companion_case,
+    respx_mock: Any,
+) -> None:
+    run_operation_contract(
+        request=get_request_callable(ai_companion_client, FIXTURE_NAME),
+        spec=ai_companion_spec,
+        case=ai_companion_case,
+        respx_mock=respx_mock,
     )
 
-    payload = _minimal_conversation_archive_response()
-    Draft202012Validator(schema).validate(payload)
 
-    user_id = "ABCDEF123456"
-    path = _render_path("/aic/users/{userId}/conversation_archive", userId=user_id)
-
-    route = respx.get(f"{BASE_URL}{path}").mock(return_value=httpx.Response(200, json=payload))
-
-    client = ZoomClient(base_url=BASE_URL, token="test")
-    aic = getattr(client, "ai_companion")
-
-    fn = getattr(aic, _snake_case("GetAICconversationarchives"))
-    result = fn(user_id=user_id)
-
-    assert route.called, "Expected the client to call the AI Companion conversation archive endpoint"
-    assert isinstance(result, (dict, list)), "Client should return decoded JSON"
-
-    Draft202012Validator(schema).validate(result)
-
-
-@respx.mock
-def test_ai_companion_raises_on_schema_mismatch(aic_spec: Mapping[str, Any]) -> None:
-    from zoompy.client import ZoomClient  # type: ignore
-
-    user_id = "ABCDEF123456"
-    path = _render_path("/aic/users/{userId}/conversation_archive", userId=user_id)
-
-    # Intentionally wrong.
-    bad_payload = {"nope": True}
-
-    respx.get(f"{BASE_URL}{path}").mock(return_value=httpx.Response(200, json=bad_payload))
-
-    client = ZoomClient(base_url=BASE_URL, token="test")
-    aic = getattr(client, "ai_companion")
-
-    fn = getattr(aic, _snake_case("GetAICconversationarchives"))
-
-    with pytest.raises(ValueError):
-        fn(user_id=user_id)
+# Fail fast with a clear message if the fixture contract is wrong.
+def test_ai_companion_client_uses_callable_fixture(ai_companion_client: Any) -> None:
+    assert callable(get_request_callable(ai_companion_client, FIXTURE_NAME))
