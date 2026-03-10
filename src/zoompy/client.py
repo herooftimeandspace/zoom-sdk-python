@@ -149,10 +149,16 @@ class ZoomClient:
 
         raw_path = path if path.startswith("/") else f"/{path}"
         actual_path = self._render_path(raw_path, path_params)
-        url = self._build_url(actual_path)
         request_timeout = timeout if timeout is not None else self._default_timeout
-        request_headers = self._build_headers(headers, timeout=request_timeout)
         normalized_method = method.upper()
+        base_url = self._schemas.base_url_for_request(
+            method=normalized_method,
+            raw_path=raw_path,
+            actual_path=actual_path,
+            fallback=self._base_url,
+        )
+        url = self._build_url(actual_path, base_url=base_url)
+        request_headers = self._build_headers(headers, timeout=request_timeout)
 
         last_response: httpx.Response | None = None
         last_exception: Exception | None = None
@@ -270,11 +276,18 @@ class ZoomClient:
             )
         return rendered
 
-    def _build_url(self, path: str) -> str:
-        """Join the configured base URL with a relative API path."""
+    def _build_url(self, path: str, *, base_url: str) -> str:
+        """Join a selected base URL with a relative API path.
+
+        The client keeps one configured default base URL, but some schema
+        families declare different server URLs. Passing the base URL into this
+        helper keeps the split of responsibilities obvious: schema matching
+        decides which server should be used, and this helper performs the final
+        path join.
+        """
 
         normalized_path = path if path.startswith("/") else f"/{path}"
-        return f"{self._base_url}{normalized_path}"
+        return f"{base_url.rstrip('/')}{normalized_path}"
 
     def _build_headers(
         self,

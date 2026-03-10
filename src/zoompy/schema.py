@@ -3,6 +3,13 @@
 The client always validates JSON responses against the bundled OpenAPI schema
 files. This module owns that behavior so request execution code stays focused on
 HTTP mechanics rather than schema traversal.
+
+The Zoom-published OpenAPI files are good enough to drive broad validation, but
+they are not perfectly uniform. A few documents use slightly non-standard JSON
+Schema details such as capitalized type names or inconsistent server URLs. The
+logic in this module is intentionally a little forgiving so callers see
+validation errors for meaningful response-shape problems instead of noise caused
+by minor schema formatting issues.
 """
 
 from __future__ import annotations
@@ -27,15 +34,21 @@ class SchemaOperation:
     path_regex: re.Pattern[str]
     responses: Mapping[str, Any]
     spec: Mapping[str, Any]
+    server_url: str | None
 
 
 class SchemaRegistry:
     """Index packaged OpenAPI schema files for fast operation lookup.
 
-    The registry builds a small prefix index so we do not need to scan every
-    single operation for every request. That said, correctness is more
-    important than theoretical performance here, so the implementation stays
-    intentionally straightforward and readable.
+        The registry builds a small prefix index so we do not need to scan every
+        single operation for every request. That said, correctness is more
+        important than theoretical performance here, so the implementation stays
+        intentionally straightforward and readable.
+
+        This class also acts as the package's "schema normalizer". The
+        production client should validate real API responses strictly, but it
+        also needs to tolerate small quirks in the upstream schema files. That
+        balance lives here instead of being spread across the HTTP client.
     """
 
     def __init__(self) -> None:
@@ -68,6 +81,11 @@ class SchemaRegistry:
             The HTTP response status code.
         payload:
             The parsed JSON payload, or `None` when the response had no body.
+
+        The validator uses a resolved and normalized schema tree. In practice
+        that means local `$ref` values are inlined first, and then small schema
+        quirks such as `type: Integer` are corrected before JSON Schema
+        validation runs.
         """
 
         operation = self.find_operation(method=method, raw_path=raw_path, actual_path=actual_path)
@@ -83,7 +101,11 @@ class SchemaRegistry:
                 f"with status {status_code}."
             )
 
-        resolved_schema = self._resolve_schema(operation.spec, schema)
+        # We normalize after resolving refs so type corrections apply to both
+        # inline schema fragments and component schemas reached through `$ref`.
+        resolved_schema = self._normalize_schema(
+            self._resolve_schema(operation.spec, schema)
+        )
         validator = Draft202012Validator(resolved_schema)
         errors = sorted(validator.iter_errors(payload), key=lambda item: list(item.path))
         if errors:
@@ -95,6 +117,40 @@ class SchemaRegistry:
                 f"Schema validation failed for {method.upper()} {actual_path} "
                 f"status {status_code}: {formatted}"
             )
+
+    def base_url_for_request(
+        self,
+        *,
+        method: str,
+        raw_path: str,
+        actual_path: str,
+        fallback: str,
+    ) -> str:
+        """Return the most appropriate server URL for one request.
+
+        The bundled schemas are not perfectly uniform about their server URLs.
+        Most endpoints use `https://api.zoom.us/v2`, while a few families such
+        as Clips and SCIM are documented at `https://api.zoom.us` instead.
+
+        The client still needs one deterministic URL to call, so we first try
+        to match the operation in the schema registry and then return that
+        operation's declared server URL. If the lookup fails for any reason, we
+        fall back to the client's configured base URL rather than making schema
+        lookup a hard precondition for sending the request.
+        """
+
+        try:
+            operation = self.find_operation(
+                method=method,
+                raw_path=raw_path,
+                actual_path=actual_path,
+            )
+        except ValueError:
+            return fallback.rstrip("/")
+
+        if operation.server_url:
+            return operation.server_url.rstrip("/")
+        return fallback.rstrip("/")
 
     def find_operation(
         self,
@@ -175,6 +231,7 @@ class SchemaRegistry:
         for schema_path in self._iter_schema_files(schema_root):
             spec = json.loads(schema_path.read_text(encoding="utf-8"))
             schema_name = str(spec.get("info", {}).get("title", schema_path.stem))
+            server_url = self._pick_server_url(spec)
 
             for path, path_item in spec.get("paths", {}).items():
                 if not isinstance(path_item, Mapping):
@@ -195,6 +252,7 @@ class SchemaRegistry:
                         path_regex=compiled,
                         responses=operation.get("responses", {}),
                         spec=spec,
+                        server_url=server_url,
                     )
                     prefix = self._path_prefix(path)
                     self._operations_by_prefix.setdefault(prefix, []).append(entry)
@@ -211,6 +269,37 @@ class SchemaRegistry:
                 yield from self._iter_schema_files(child)
             elif child.name.endswith(".json"):
                 yield Path(str(child))
+
+    def _pick_server_url(self, spec: Mapping[str, Any]) -> str | None:
+        """Return the primary server URL declared by one OpenAPI document.
+
+        Zoom's OpenAPI files typically list several URLs near the top of the
+        document, including documentation URLs such as `developer.zoom.us` and
+        the actual API server URL. We specifically prefer `api.zoom.us`
+        endpoints because those are the executable servers the client should
+        call during real requests and test mocks.
+        """
+
+        servers = spec.get("servers")
+        if not isinstance(servers, list):
+            return None
+
+        fallback: str | None = None
+        for entry in servers:
+            if not isinstance(entry, Mapping):
+                continue
+
+            url = entry.get("url")
+            if not isinstance(url, str) or not url:
+                continue
+
+            cleaned = url.rstrip("/")
+            if fallback is None:
+                fallback = cleaned
+            if "api.zoom.us" in cleaned:
+                return cleaned
+
+        return fallback
 
     def _path_prefix(self, path: str) -> str:
         """Return the leading path segment used for schema bucketing."""
@@ -313,3 +402,53 @@ class SchemaRegistry:
             else:
                 resolved[key] = value
         return resolved
+
+    def _normalize_schema(self, schema: Any) -> Any:
+        """Normalize non-standard schema details before validation.
+
+        Zoom's published OpenAPI documents are close to standard JSON Schema,
+        but they occasionally contain small inconsistencies such as capitalized
+        type names like `Integer`. The contract tests already tolerate those
+        quirks, so the production validator should do the same. Otherwise users
+        can receive validation failures that are artifacts of the published
+        schema rather than problems in the API response itself.
+
+        We keep normalization intentionally narrow. The goal is to smooth over
+        known documentation irregularities, not to silently reinterpret whole
+        schemas or weaken response validation semantics.
+        """
+
+        if isinstance(schema, Mapping):
+            normalized: dict[str, Any] = {}
+            for key, value in schema.items():
+                if key == "type" and isinstance(value, str):
+                    normalized[key] = self._normalize_type_name(value)
+                elif isinstance(value, Mapping):
+                    normalized[key] = self._normalize_schema(value)
+                elif isinstance(value, list):
+                    normalized[key] = [
+                        self._normalize_schema(item) for item in value
+                    ]
+                else:
+                    normalized[key] = value
+            return normalized
+
+        if isinstance(schema, list):
+            return [self._normalize_schema(item) for item in schema]
+        return schema
+
+    def _normalize_type_name(self, value: str) -> str:
+        """Return a canonical JSON Schema type name when one is recognizable."""
+
+        lowered = value.lower()
+        known_types = {
+            "array",
+            "boolean",
+            "integer",
+            "number",
+            "object",
+            "string",
+        }
+        if lowered in known_types:
+            return lowered
+        return value
