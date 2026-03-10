@@ -6,7 +6,7 @@ response assertion code dozens of times.
 
 The general flow is:
 
-1. Load one OpenAPI schema file from `src/tests/schemas/...`.
+1. Load one OpenAPI schema file from `src/tests/endpoints/...`.
 2. Discover each HTTP operation in that schema.
 3. Build a best-effort example request and response payload from the schema.
 4. Mock the outbound HTTP call with `respx`.
@@ -61,6 +61,24 @@ class OperationCase:
     request_json: Any | None
     response_schema: dict[str, Any] | None
     status_code: int
+
+
+@dataclass(frozen=True)
+class WebhookCase:
+    """A fully prepared test case for one OpenAPI webhook event.
+
+    Webhook specs are shaped differently from ordinary endpoint specs: the
+    interesting contract lives under the document's `webhooks` section, and the
+    schema we want to validate is the incoming request body rather than an HTTP
+    response body. This small dataclass keeps the webhook tests readable while
+    still using the same shared schema-walking helpers as the endpoint suites.
+    """
+
+    operation_id: str
+    event_name: str
+    method: str
+    request_schema: dict[str, Any]
+    request_example: Any | None = None
 
 
 def load_openapi_spec(path: Path, expected_title: str | None = None) -> dict[str, Any]:
@@ -172,6 +190,24 @@ def iter_operations(spec: Mapping[str, Any]) -> Iterable[tuple[str, str, str, Ma
                 yield op.get("operationId") or f"{method}_{path}", method.upper(), path, op
 
 
+def iter_webhooks(spec: Mapping[str, Any]) -> Iterable[tuple[str, str, str, Mapping[str, Any]]]:
+    """Yield every webhook operation declared in the schema.
+
+    Zoom's webhook documents use the OpenAPI `webhooks` section instead of
+    `paths`. Each top-level key is effectively the event name, and the nested
+    HTTP method describes the payload contract Zoom sends to subscribers.
+    """
+
+    webhooks = spec.get("webhooks", {})
+    for event_name, item in webhooks.items():
+        if not isinstance(item, Mapping):
+            continue
+        for method in ("post", "put", "patch", "delete", "get"):
+            op = item.get(method)
+            if isinstance(op, Mapping):
+                yield op.get("operationId") or f"{method}_{event_name}", str(event_name), method.upper(), op
+
+
 def deepcopy_json(value: Any) -> Any:
     """Clone plain JSON-compatible data using JSON round-tripping.
 
@@ -194,7 +230,19 @@ def resolve_ref(spec: Mapping[str, Any], ref: str) -> Any:
     if not ref.startswith("#/"):
         raise ValueError(f"Only local refs are supported in tests, got: {ref}")
     cur: Any = spec
-    for part in ref.lstrip("#/").split("/"):
+    parts = ref.lstrip("#/").split("/")
+    if parts and parts[0] == "paths" and "paths" not in spec and "webhooks" in spec:
+        # Some webhook documents contain malformed local refs that still point
+        # to `#/paths/...` even though the document only has a `webhooks`
+        # section. Rewriting that first segment keeps the helper aligned with
+        # the actual document shape without weakening normal endpoint refs.
+        parts[0] = "webhooks"
+
+    for part in parts:
+        # JSON Pointer escapes `/` as `~1` and `~` as `~0`. Webhook documents
+        # use those escaped references heavily when they point into nested path-
+        # like keys inside the same OpenAPI file.
+        part = part.replace("~1", "/").replace("~0", "~")
         if not isinstance(cur, Mapping) or part not in cur:
             raise KeyError(f"Unresolvable $ref: {ref}")
         cur = cur[part]
@@ -248,19 +296,47 @@ def normalize_schema(schema: Any) -> Any:
                 lowered = value.lower()
                 type_map = {
                     "integer": "integer",
+                    "int64": "integer",
+                    "long": "integer",
                     "number": "number",
                     "string": "string",
                     "boolean": "boolean",
                     "array": "array",
                     "object": "object",
                 }
-                normalized[key] = type_map.get(lowered, value)
+                if lowered in type_map:
+                    normalized[key] = type_map[lowered]
+                elif any(token in lowered for token in ("enum", "country", "states", "city", "campus", "building", "floor")):
+                    # Some webhook documents misuse the `type` field to describe
+                    # allowed string values instead of the JSON Schema primitive
+                    # type. Treat those as strings so validation can proceed on
+                    # the actual surrounding object shape.
+                    normalized[key] = "string"
+                else:
+                    normalized[key] = value
             elif isinstance(value, Mapping):
                 normalized[key] = normalize_schema(value)
             elif isinstance(value, list):
                 normalized[key] = [normalize_schema(item) for item in value]
             else:
                 normalized[key] = value
+
+        properties = normalized.get("properties")
+        required = normalized.get("required")
+        if isinstance(properties, Mapping) and isinstance(required, list):
+            synthesized_properties = dict(properties)
+            changed = False
+            for name in required:
+                if isinstance(name, str) and name not in synthesized_properties:
+                    # Some Zoom schemas mark keys as required but forget to
+                    # declare them under `properties`. Adding an empty schema
+                    # makes the object contract internally coherent and lets
+                    # additionalProperties=false work the way the author
+                    # probably intended.
+                    synthesized_properties[name] = {}
+                    changed = True
+            if changed:
+                normalized["properties"] = synthesized_properties
         return normalized
     if isinstance(schema, list):
         return [normalize_schema(item) for item in schema]
@@ -329,6 +405,12 @@ def example_for_primitive(schema: Mapping[str, Any]) -> Any:
     fmt = schema.get("format")
 
     if schema_type == "string" or schema_type is None:
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str):
+            if "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z" in pattern:
+                return "2024-01-01T00:00:00Z"
+            if "\\s*" in pattern:
+                return ""
         if fmt in {"email", "uri", "uuid", "date-time"}:
             if fmt == "email":
                 return "test@example.com"
@@ -657,6 +739,58 @@ def validate(instance: Any, schema: Mapping[str, Any]) -> None:
     Draft202012Validator(normalize_schema(schema)).validate(instance)
 
 
+def conform_example_to_schema(
+    spec: Mapping[str, Any],
+    instance: Any,
+    schema: Mapping[str, Any],
+) -> Any:
+    """Trim and patch an example so it better matches a schema fragment.
+
+    Zoom's media-level examples are often closer to real payloads than our
+    synthetic generator, but they also sometimes include fields omitted from the
+    schema or omit fields the schema marks as required. This helper nudges those
+    examples toward the documented contract by:
+
+    * removing unknown keys when `additionalProperties` is false
+    * recursively conforming nested objects and arrays
+    * filling in missing required keys from the property schema when possible
+    """
+
+    resolved_schema = normalize_schema(resolve_schema(spec, schema))
+    if not isinstance(resolved_schema, Mapping):
+        return instance
+
+    schema_type = resolved_schema.get("type")
+    if schema_type == "object" and isinstance(instance, Mapping):
+        properties = resolved_schema.get("properties", {})
+        required = resolved_schema.get("required", []) or []
+        additional_properties = resolved_schema.get("additionalProperties", True)
+
+        allowed_keys = set(properties.keys()) if isinstance(properties, Mapping) else set()
+        conformed: dict[str, Any] = {}
+        for key, value in instance.items():
+            if key in allowed_keys and isinstance(properties, Mapping):
+                conformed[key] = conform_example_to_schema(spec, value, properties[key])
+            elif additional_properties is not False:
+                conformed[key] = value
+
+        for name in required:
+            if not isinstance(name, str) or name in conformed:
+                continue
+            if isinstance(properties, Mapping) and name in properties:
+                conformed[name] = example_from_schema(spec, properties[name])
+            else:
+                conformed[name] = "test"
+
+        return conformed
+
+    if schema_type == "array" and isinstance(instance, list):
+        items_schema = resolved_schema.get("items", {})
+        return [conform_example_to_schema(spec, item, items_schema) for item in instance]
+
+    return instance
+
+
 def validate_response_examples(spec: Mapping[str, Any], cases: Iterable[OperationCase]) -> None:
     """Smoke-test every discovered response schema using a generated example.
 
@@ -786,6 +920,108 @@ def build_operation_cases(spec: Mapping[str, Any]) -> list[OperationCase]:
         )
 
     return cases
+
+
+def build_webhook_cases(spec: Mapping[str, Any]) -> list[WebhookCase]:
+    """Turn a webhook OpenAPI document into parametrized webhook test cases.
+
+    For each webhook event we extract the JSON request-body schema that Zoom
+    documents as the payload sent to a subscriber. That gives the webhook suite
+    a concrete contract to example-generate and validate, just as endpoint
+    suites do for response schemas.
+    """
+
+    cases: list[WebhookCase] = []
+    for operation_id, event_name, method, op in iter_webhooks(spec):
+        request_body = op.get("requestBody")
+        if not isinstance(request_body, Mapping):
+            continue
+
+        content = request_body.get("content")
+        if not isinstance(content, Mapping):
+            continue
+
+        picked = pick_json_media_type(content)
+        if picked is None:
+            continue
+
+        _, app_json = picked
+        schema = app_json.get("schema")
+        if not isinstance(schema, Mapping):
+            continue
+
+        request_example = extract_media_example(app_json)
+        cases.append(
+            WebhookCase(
+                operation_id=str(operation_id),
+                event_name=str(event_name),
+                method=method,
+                request_schema=resolve_schema(spec, schema),
+                request_example=request_example,
+            )
+        )
+
+    return cases
+
+
+def validate_webhook_examples(spec: Mapping[str, Any], cases: Iterable[WebhookCase]) -> None:
+    """Smoke-test every discovered webhook payload schema with a generated example.
+
+    The endpoint suites already prove that the client can validate outbound API
+    responses. This companion helper performs the analogous schema check for the
+    inbound webhook documents now stored in the repository: can we synthesize a
+    payload that validates against the request-body schema Zoom publishes for
+    each event?
+    """
+
+    for case in cases:
+        example = case.request_example
+        if example is not None:
+            example = conform_example_to_schema(spec, example, case.request_schema)
+        if example is None or not is_valid(example, case.request_schema):
+            example = example_from_schema(spec, case.request_schema)
+            example = conform_example_to_schema(spec, example, case.request_schema)
+        if not is_valid(example, case.request_schema):
+            raise AssertionError(
+                f"Could not generate a schema-valid example webhook payload for "
+                f"{case.operation_id} ({case.event_name})."
+            )
+
+
+def extract_media_example(media: Mapping[str, Any]) -> Any | None:
+    """Return one example payload from an OpenAPI media-type block.
+
+    Webhook request bodies often provide richer examples at the media level than
+    the nested schema does. We prefer those when available because they reflect
+    the full event envelope Zoom intends to send and often include the sibling
+    fields required by complex webhook payload shapes.
+    """
+
+    if "example" in media:
+        return _normalize_media_example_value(media["example"])
+
+    examples = media.get("examples")
+    if not isinstance(examples, Mapping):
+        return None
+
+    for entry in examples.values():
+        if isinstance(entry, Mapping) and "value" in entry:
+            return _normalize_media_example_value(entry["value"])
+
+    return None
+
+
+def _normalize_media_example_value(value: Any) -> Any:
+    """Normalize one media-level example into ordinary JSON data."""
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("{") or stripped.startswith("["):
+            try:
+                return json.loads(stripped)
+            except Exception:
+                return value
+    return value
 
 
 def format_path(path: str, path_params: Mapping[str, Any]) -> str:

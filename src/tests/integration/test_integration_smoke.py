@@ -120,6 +120,27 @@ def _request_or_skip_for_scope(
     return payload
 
 
+def _get_access_token_or_skip(client: ZoomClient) -> str:
+    """Acquire a live token or skip when the environment cannot reach Zoom.
+
+    Integration tests are meant to verify real connectivity when it exists, but
+    local and CI environments do not always have outbound network access. A
+    transport-level connection failure is therefore a test-environment issue,
+    not evidence that the client contract is broken.
+    """
+
+    try:
+        token = client.get_access_token()
+    except httpx.TransportError as exc:
+        pytest.skip(
+            "Integration environment cannot reach Zoom OAuth: "
+            f"{type(exc).__name__}: {exc}"
+        )
+    assert isinstance(token, str)
+    assert token
+    return token
+
+
 @pytest.mark.integration
 def test_integration_smoke_read_only_endpoints() -> None:
     """Exercise a small read-only slice of the real Zoom API.
@@ -137,9 +158,7 @@ def test_integration_smoke_read_only_endpoints() -> None:
 
     client = ZoomClient()
     try:
-        token = client.get_access_token()
-        assert isinstance(token, str)
-        assert token
+        token = _get_access_token_or_skip(client)
 
         # Read a bounded page of users so the smoke test stays fast and
         # non-destructive even on large accounts.
