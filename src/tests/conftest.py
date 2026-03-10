@@ -11,9 +11,20 @@ library behavior, not a parallel testing adapter with its own custom logic.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from pathlib import Path
+import sys
 from typing import Any
 
 import pytest
+
+# Pytest loads `conftest.py` before importing the package under test. When the
+# developer runs pytest directly from the repository root without first doing an
+# editable install, `src/` is not automatically on `sys.path`, so `import
+# zoompy` fails. We add the repository `src` directory here to make local test
+# runs behave the same way as an editable install.
+PROJECT_SRC = Path(__file__).resolve().parents[1]
+if str(PROJECT_SRC) not in sys.path:
+    sys.path.insert(0, str(PROJECT_SRC))
 
 from zoompy import ZoomClient
 
