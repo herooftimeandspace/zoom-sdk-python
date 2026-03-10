@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import shutil
 from dataclasses import dataclass
@@ -34,7 +35,6 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-
 
 DEFAULT_CANONICAL_ROOT = Path("src/zoompy/endpoints")
 DEFAULT_TEST_ROOT = Path("src/tests/endpoints")
@@ -45,6 +45,7 @@ DEFAULT_TEST_WEBHOOK_ROOT = Path("src/tests/webhooks")
 DEFAULT_CACHE_ROOT = Path(".cache/zoompy-schema-sync")
 DEFAULT_MANIFEST_PATH = Path("scripts/schema_urls.json")
 USER_AGENT = "zoompy-schema-sync/0.1 (+https://github.com/herooftimeandspace/zoompy)"
+LOGGER = logging.getLogger("zoompy.scripts.sync_schemas")
 
 
 @dataclass(frozen=True)
@@ -369,9 +370,16 @@ def download_openapi_specs(
                 )
             )
             if source.optional and exc.code == 404:
-                print(f"note: optional schema not published at {source.url}")
+                LOGGER.info(
+                    "Optional schema not published at %s",
+                    source.url,
+                )
             else:
-                print(f"warning: failed to download {source.url}: HTTP {exc.code}")
+                LOGGER.warning(
+                    "Failed to download %s: HTTP %s",
+                    source.url,
+                    exc.code,
+                )
             continue
         except URLError as exc:
             failures.append(
@@ -381,7 +389,11 @@ def download_openapi_specs(
                     reason=f"URL error: {exc.reason}",
                 )
             )
-            print(f"warning: failed to download {source.url}: {exc.reason}")
+            LOGGER.warning(
+                "Failed to download %s: %s",
+                source.url,
+                exc.reason,
+            )
             continue
         except Exception as exc:  # noqa: BLE001
             failures.append(
@@ -391,11 +403,19 @@ def download_openapi_specs(
                     reason=f"{type(exc).__name__}: {exc}",
                 )
             )
-            print(f"warning: failed to download {source.url}: {type(exc).__name__}: {exc}")
+            LOGGER.warning(
+                "Failed to download %s: %s: %s",
+                source.url,
+                type(exc).__name__,
+                exc,
+            )
             continue
 
         if payload is None or not looks_like_openapi_spec(payload):
-            print(f"warning: skipped non-OpenAPI JSON document from {source.url}")
+            LOGGER.warning(
+                "Skipped non-OpenAPI JSON document from %s",
+                source.url,
+            )
             failures.append(
                 DownloadFailure(
                     url=source.url,
@@ -407,9 +427,12 @@ def download_openapi_specs(
 
         title = str(payload.get("info", {}).get("title", "")).strip()
         if source.expected_title and title != source.expected_title:
-            print(
-                "warning: downloaded schema title did not match expected title: "
-                f"url={source.url} expected={source.expected_title!r} actual={title!r}",
+            LOGGER.warning(
+                "Downloaded schema title did not match expected title: "
+                "url=%s expected=%r actual=%r",
+                source.url,
+                source.expected_title,
+                title,
             )
 
         downloaded.append(
@@ -467,7 +490,7 @@ def write_schema(path: Path, payload: dict[str, Any], dry_run: bool) -> None:
 
     text = json.dumps(payload, indent=2, sort_keys=False) + "\n"
     if dry_run:
-        print(f"would update {path}")
+        LOGGER.info("Would update %s", path)
         return
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -508,7 +531,7 @@ def mirror_tree(source_root: Path, target_root: Path, dry_run: bool) -> None:
     for relative_path in sorted(target_files - source_files):
         stale = target_root / relative_path
         if dry_run:
-            print(f"would remove stale mirrored schema {stale}")
+            LOGGER.info("Would remove stale mirrored schema %s", stale)
         else:
             stale.unlink()
 
@@ -516,7 +539,7 @@ def mirror_tree(source_root: Path, target_root: Path, dry_run: bool) -> None:
         source = source_root / relative_path
         target = target_root / relative_path
         if dry_run:
-            print(f"would mirror {source} -> {target}")
+            LOGGER.info("Would mirror %s -> %s", source, target)
             continue
 
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -554,10 +577,12 @@ def update_from_downloads(
             write_unmatched_download(cache_root, schema, dry_run)
             continue
 
-        print(
-            "mapping downloaded "
-            f"{schema.schema_kind} title {schema.title!r} "
-            f"from {schema.url} -> {target}"
+        LOGGER.info(
+            "Mapping downloaded %s title %r from %s -> %s",
+            schema.schema_kind,
+            schema.title,
+            schema.url,
+            target,
         )
         write_schema(target, schema.payload, dry_run)
         updated += 1
@@ -568,6 +593,7 @@ def update_from_downloads(
 def main() -> int:
     """Run the schema sync workflow."""
 
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     args = parse_args()
 
     canonical_root = args.canonical_root.resolve()
@@ -588,7 +614,10 @@ def main() -> int:
     if not args.mirror_only:
         sources = load_manifest(args.manifest.resolve())
         downloaded_specs, failures = download_openapi_specs(sources, args.timeout)
-        print(f"downloaded {len(downloaded_specs)} OpenAPI-like JSON documents")
+        LOGGER.info(
+            "Downloaded %s OpenAPI-like JSON documents",
+            len(downloaded_specs),
+        )
         updated, unmatched = update_from_downloads(
             canonical_root=canonical_root,
             master_account_root=master_account_root,
@@ -604,17 +633,21 @@ def main() -> int:
         mirror_tree(webhook_root, test_webhook_root, args.dry_run)
 
     if failures:
-        print("download failures:")
+        LOGGER.warning("Download failures:")
         for failure in failures:
-            print(
-                f"  - title={failure.expected_title!r} "
-                f"url={failure.url} reason={failure.reason}"
+            LOGGER.warning(
+                "  - title=%r url=%s reason=%s",
+                failure.expected_title,
+                failure.url,
+                failure.reason,
             )
 
-    print(
-        f"sync complete: updated={updated} unmatched={unmatched} "
-        f"failed={len(failures)} "
-        f"mirrored={'no' if args.skip_mirror else 'yes'}",
+    LOGGER.info(
+        "Sync complete: updated=%s unmatched=%s failed=%s mirrored=%s",
+        updated,
+        unmatched,
+        len(failures),
+        "no" if args.skip_mirror else "yes",
     )
     return 1 if failures else 0
 

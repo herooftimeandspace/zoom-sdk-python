@@ -321,17 +321,21 @@ calls already behave like a real typed scripting SDK:
 Example:
 
 ```python
+import logging
+
 from zoompy import ZoomClient
+
+logger = logging.getLogger(__name__)
 
 with ZoomClient() as client:
     user = client.users.get(user_id="me")
-    print(user.display_name)
+    logger.info("Loaded user %s", user.display_name)
 
     created = client.users.create(
         email="person@example.com",
         first_name="Ada",
     )
-    print(created.email)
+    logger.info("Created user %s", created.email)
 ```
 
 Most callers do not need to think about model plumbing at all. The common
@@ -356,16 +360,24 @@ of model objects, use `.raw(...)`.
 Most Zoom list endpoints use `next_page_token`. The SDK exposes that directly:
 
 ```python
+import logging
+
 from zoompy import ZoomClient
+
+logger = logging.getLogger(__name__)
 
 with ZoomClient() as client:
     for page in client.users.list.paginate(page_size=100):
-        print(page.next_page_token, page.total_records)
+        logger.info(
+            "page token=%s total_records=%s",
+            page.next_page_token,
+            page.total_records,
+        )
         for user in page.items:
-            print(user.user_id)
+            logger.info("user_id=%s", user.user_id)
 
     for user in client.users.list.iter_all(page_size=100):
-        print(user.user_id)
+        logger.info("user_id=%s", user.user_id)
 ```
 
 ### Context manager

@@ -42,7 +42,7 @@ class ZoomClient:
     2. acquiring and caching OAuth access tokens
     3. executing HTTP requests with retries and backoff
     4. validating JSON responses against bundled OpenAPI schemas
-    5. emitting structured logs when logging is enabled
+    5. emitting structured logs through the package logger
 
     Keeping those responsibilities together in one class gives library users a
     small, predictable public API while still keeping the implementation itself

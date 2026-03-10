@@ -1,8 +1,10 @@
 """Structured logging helpers for the `zoompy` package.
 
-The library deliberately does not force logging configuration on applications.
-Instead, we provide a JSON formatter and a convenience configuration function
-that users can opt into when they want observability.
+The package logger defaults to the `INFO` level so applications can receive the
+normal request lifecycle immediately after attaching their own handlers.
+`zoompy` still does not choose an output destination on behalf of the caller:
+applications remain responsible for attaching console, file, or other logging
+handlers.
 
 Only the standard library `logging` module is used here, per the repository's
 dependency constraints.
@@ -61,12 +63,15 @@ class JsonLogFormatter(logging.Formatter):
 def get_logger() -> logging.Logger:
     """Return the package logger and ensure it is safe by default.
 
-    A `NullHandler` prevents the "No handlers could be found" warning while also
-    honoring the requirement that the library must not configure logging unless
-    the user explicitly opts in.
+    The library defaults to the `INFO` level so application code can see the
+    normal request lifecycle as soon as it attaches its own handlers. A
+    `NullHandler` still prevents "No handlers could be found" warnings and
+    keeps the library from deciding on behalf of the application where log
+    output should go.
     """
 
     logger = logging.getLogger("zoompy")
+    logger.setLevel(logging.INFO)
     if not logger.handlers:
         logger.addHandler(logging.NullHandler())
     return logger
