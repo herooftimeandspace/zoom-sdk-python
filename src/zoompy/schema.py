@@ -106,8 +106,15 @@ class SchemaRegistry:
         resolved_schema = self._normalize_schema(
             self._resolve_schema(operation.spec, schema)
         )
+        normalized_payload = self._normalize_payload_for_schema(
+            payload,
+            resolved_schema,
+        )
         validator = Draft202012Validator(resolved_schema)
-        errors = sorted(validator.iter_errors(payload), key=lambda item: list(item.path))
+        errors = sorted(
+            validator.iter_errors(normalized_payload),
+            key=lambda item: list(item.path),
+        )
         if errors:
             formatted = "; ".join(
                 f"path={list(error.path)} message={error.message}"
@@ -452,3 +459,239 @@ class SchemaRegistry:
         if lowered in known_types:
             return lowered
         return value
+
+    def _normalize_payload_for_schema(self, payload: Any, schema: Any) -> Any:
+        """Adjust a payload just enough to handle known live API quirks.
+
+        Zoom's live responses are usually close to the published schema, but a
+        small number of fields behave as "optional enum values" in practice and
+        come back as the empty string when the setting is effectively unset.
+        The published schema typically models those fields as a string enum with
+        no empty-string member.
+
+        We handle that specific mismatch by dropping the property during
+        validation only when all of the following are true:
+
+        * the parent payload is an object
+        * the field is not required by the schema
+        * the field's schema is an enum-constrained string
+        * the live value is the empty string
+
+        That keeps validation strict for real shape mismatches while avoiding
+        false negatives caused by this documented-vs-live discrepancy.
+        """
+
+        if not isinstance(schema, Mapping):
+            return payload
+
+        # OpenAPI response schemas often use composition keywords instead of a
+        # single flat object definition. We normalize those first so the same
+        # compatibility rules apply whether a field is declared directly, pulled
+        # in through `allOf`, or selected from a `oneOf`/`anyOf` branch.
+        composed_payload = self._normalize_composed_payload(payload, schema)
+        if composed_payload is not payload:
+            return composed_payload
+
+        schema_type = schema.get("type")
+
+        if schema_type == "object" and isinstance(payload, Mapping):
+            return self._normalize_object_payload(payload, schema)
+
+        if schema_type == "array" and isinstance(payload, list):
+            item_schema = schema.get("items")
+            return [
+                self._normalize_payload_for_schema(item, item_schema)
+                for item in payload
+            ]
+
+        return payload
+
+    def _normalize_composed_payload(
+        self,
+        payload: Any,
+        schema: Mapping[str, Any],
+    ) -> Any:
+        """Normalize payloads described through schema composition keywords.
+
+        `allOf` means "apply all of these schema fragments together", so we run
+        normalization through each branch in sequence. `oneOf` and `anyOf` are
+        trickier because only one branch may be the real shape. For those, we
+        normalize against each candidate and keep the branch that validates best.
+        """
+
+        if "allOf" in schema:
+            return self._normalize_all_of_payload(payload, schema)
+
+        for keyword in ("oneOf", "anyOf"):
+            if keyword in schema:
+                return self._normalize_variant_payload(payload, schema, keyword)
+
+        return payload
+
+    def _normalize_all_of_payload(
+        self,
+        payload: Any,
+        schema: Mapping[str, Any],
+    ) -> Any:
+        """Apply payload normalization across every `allOf` branch."""
+
+        normalized = payload
+        for branch in schema.get("allOf", []):
+            if not isinstance(branch, Mapping):
+                continue
+            merged_branch = self._merge_schema_branch(schema, branch, "allOf")
+            normalized = self._normalize_payload_for_schema(
+                normalized,
+                merged_branch,
+            )
+        return normalized
+
+    def _normalize_variant_payload(
+        self,
+        payload: Any,
+        schema: Mapping[str, Any],
+        keyword: str,
+    ) -> Any:
+        """Pick the best `oneOf`/`anyOf` branch for normalization.
+
+        We score each candidate by the number of validation errors remaining
+        after normalization. The lowest-error branch is the closest match to the
+        live payload and therefore the safest schema context in which to apply
+        compatibility tweaks.
+        """
+
+        candidates = schema.get(keyword, [])
+        if not isinstance(candidates, list):
+            return payload
+
+        best_payload = payload
+        best_error_count: int | None = None
+
+        for branch in candidates:
+            if not isinstance(branch, Mapping):
+                continue
+
+            candidate_schema = self._merge_schema_branch(schema, branch, keyword)
+            candidate_payload = self._normalize_payload_for_schema(
+                payload,
+                candidate_schema,
+            )
+            validator = Draft202012Validator(candidate_schema)
+            error_count = sum(1 for _ in validator.iter_errors(candidate_payload))
+
+            if best_error_count is None or error_count < best_error_count:
+                best_error_count = error_count
+                best_payload = candidate_payload
+
+            if error_count == 0:
+                break
+
+        return best_payload
+
+    def _merge_schema_branch(
+        self,
+        schema: Mapping[str, Any],
+        branch: Mapping[str, Any],
+        keyword: str,
+    ) -> dict[str, Any]:
+        """Merge one composition branch with its parent schema siblings.
+
+        OpenAPI authors often put shared constraints next to a composition
+        keyword, for example `description`, `required`, or extra `properties`.
+        We carry those sibling constraints into the branch-specific schema so
+        normalization and validation see the same effective shape the caller
+        expects.
+        """
+
+        merged: dict[str, Any] = {}
+        for key, value in schema.items():
+            if key == keyword:
+                continue
+            merged[key] = value
+
+        for key, value in branch.items():
+            if key == "properties":
+                existing = merged.get("properties")
+                if isinstance(existing, Mapping):
+                    merged[key] = {**existing, **value}
+                else:
+                    merged[key] = value
+            elif key == "required":
+                existing_required = merged.get("required", [])
+                if isinstance(existing_required, list) and isinstance(value, list):
+                    merged[key] = list(dict.fromkeys([*existing_required, *value]))
+                else:
+                    merged[key] = value
+            else:
+                merged[key] = value
+
+        return merged
+
+    def _normalize_object_payload(
+        self,
+        payload: Mapping[str, Any],
+        schema: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Normalize one object payload against its object schema."""
+
+        normalized = dict(payload)
+        properties = schema.get("properties")
+        if not isinstance(properties, Mapping):
+            return normalized
+
+        required = schema.get("required", [])
+        required_names = {
+            name for name in required
+            if isinstance(name, str)
+        }
+
+        for key, value in payload.items():
+            property_schema = properties.get(key)
+            if not isinstance(property_schema, Mapping):
+                continue
+
+            if self._should_drop_empty_optional_enum_value(
+                key=key,
+                value=value,
+                property_schema=property_schema,
+                required_names=required_names,
+            ):
+                normalized.pop(key, None)
+                continue
+
+            normalized[key] = self._normalize_payload_for_schema(
+                value,
+                property_schema,
+            )
+
+        return normalized
+
+    def _should_drop_empty_optional_enum_value(
+        self,
+        *,
+        key: str,
+        value: Any,
+        property_schema: Mapping[str, Any],
+        required_names: set[str],
+    ) -> bool:
+        """Return whether one property should be treated as "unset".
+
+        This helper intentionally encodes a narrow policy. Empty strings are
+        common and valid in many APIs, so we only treat them specially when the
+        schema says the property is an optional enum-backed string.
+        """
+
+        if key in required_names:
+            return False
+
+        if value != "":
+            return False
+
+        if property_schema.get("type") != "string":
+            return False
+
+        enum_values = property_schema.get("enum")
+        if not isinstance(enum_values, list):
+            return False
+
+        return "" not in enum_values
