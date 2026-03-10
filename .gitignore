@@ -43,6 +43,7 @@ coverage.xml
 # Tool-specific local state
 .tox/
 .nox/
+.cache/zoompy-schema-sync/
 .ipynb_checkpoints/
 
 # Editor and IDE metadata

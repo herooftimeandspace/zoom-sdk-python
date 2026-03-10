@@ -56,6 +56,19 @@ The package bundles OpenAPI schema files under `src/zoompy/schemas/**`. Every
 successful JSON response is validated against the matching schema operation and
 status code.
 
+`src/zoompy/schemas` is the canonical endpoint schema tree. The repository also
+keeps a mirrored copy under `src/tests/schemas` because the existing contract
+tests load schema files directly by path.
+
+Webhook OpenAPI documents are synced separately under `src/zoompy/webhooks` and
+mirrored to `src/tests/webhooks`. They are stored outside the main schema tree
+because webhook specs use the OpenAPI `webhooks` section rather than `paths`,
+so they should not be mixed into the client's response-validation registry.
+
+Use `scripts/sync_schemas.py` to refresh both endpoint and webhook documents
+from a manually curated URL list and mirror them into the test tree in one
+step.
+
 If the response body does not match the documented schema, `zoompy` raises
 `ValueError` with a concise message that includes:
 
@@ -371,6 +384,31 @@ This repository uses multiple layers of testing:
    These connect the contract tests to the real production client.
 3. integration smoke test under `src/tests/integration`
    This verifies real token acquisition when credentials are available.
+
+To refresh schemas from the URLs listed in `scripts/schema_urls.json` and then
+mirror the canonical tree into the test tree, run:
+
+```bash
+./.venv/bin/python scripts/sync_schemas.py
+```
+
+Edit `scripts/schema_urls.json` first so it contains the exact endpoint schema
+JSON URLs you want to trust and download. For each endpoint URL, the sync script
+also derives the companion `events/webhooks.json` URL automatically.
+
+The sync script matches each downloaded schema to a local file by the schema's
+`info.title`, not by the remote URL basename, so URLs like
+`.../meetings/methods/endpoints.json` still update `Meetings.json`. You can
+also provide `expected_title` in the manifest to make that mapping explicit.
+If a webhook document uses a different title than its endpoint schema, provide
+`webhook_expected_title` as well. Webhook URLs that return `404` are treated as
+optional and do not fail the whole sync.
+
+To only rebuild the test mirror from the canonical package schemas, run:
+
+```bash
+./.venv/bin/python scripts/sync_schemas.py --mirror-only
+```
 
 The contract tests are the main source of behavioral confidence. The
 integration smoke test exists to confirm that the live OAuth path still works.

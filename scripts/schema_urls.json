@@ -1,0 +1,133 @@
+{
+  "urls": [
+    {
+      "url": "https://developers.zoom.us/api-hub/accounts/methods/endpoints.json",
+      "expected_title": "Accounts"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/qss/methods/endpoints.json",
+      "expected_title": "QSS"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/scim2/methods/endpoints.json",
+      "expected_title": "SCIM2"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/users/methods/endpoints.json",
+      "expected_title": "Users"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/cobrowse-sdk/methods/endpoints.json",
+      "expected_title": "Cobrowse SDK"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/video-sdk/methods/endpoints.json",
+      "expected_title": "Video SDK"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/auto-dialer/methods/endpoints.json",
+      "expected_title": "Auto Dialer"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/commerce/methods/endpoints.json",
+      "expected_title": "Commerce"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/contact-center/methods/endpoints.json",
+      "expected_title": "Contact Center"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/events/methods/endpoints.json",
+      "expected_title": "Events"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/healthcare/methods/endpoints.json",
+      "expected_title": "Healthcare"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/number-management/methods/endpoints.json",
+      "expected_title": "Number Management"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/quality-management/methods/endpoints.json",
+      "expected_title": "Quality Management"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/iq/methods/endpoints.json",
+      "expected_title": "Revenue Accelerator",
+      "webhook_expected_title": "Zoom Revenue Accelerator Webhooks"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/video-management/methods/endpoints.json",
+      "expected_title": "Video Management"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/virtual-agent/methods/endpoints.json",
+      "expected_title": "Virtual Agent"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/workforce-management/methods/endpoints.json",
+      "expected_title": "Workforce Management"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/marketplace/methods/endpoints.json",
+      "expected_title": "Marketplace"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/ai-companion/methods/endpoints.json",
+      "expected_title": "AI Companion"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/calendar/methods/endpoints.json",
+      "expected_title": "Calendar"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/chatbot/methods/endpoints.json",
+      "expected_title": "Chatbot"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/clips/methods/endpoints.json",
+      "expected_title": "Clips"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/crc/methods/endpoints.json",
+      "expected_title": "Conference Room Connector"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/mail/methods/endpoints.json",
+      "expected_title": "Mail"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/meetings/methods/endpoints.json",
+      "expected_title": "Meetings"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/phone/methods/endpoints.json",
+      "expected_title": "Phone"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/rooms/methods/endpoints.json",
+      "expected_title": "Rooms"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/scheduler/methods/endpoints.json",
+      "expected_title": "Scheduler"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/tasks/methods/endpoints.json",
+      "expected_title": "Tasks"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/team-chat/methods/endpoints.json",
+      "expected_title": "Team Chat"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/whiteboard/methods/endpoints.json",
+      "expected_title": "Whiteboard"
+    },
+    {
+      "url": "https://developers.zoom.us/api-hub/zoom-docs/methods/endpoints.json",
+      "expected_title": "Zoom Docs"
+    }
+  ]
+}
