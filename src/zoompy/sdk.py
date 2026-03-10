@@ -45,6 +45,7 @@ _PAGINATION_FIELD_NAMES = {
     "total_records",
     "total_pages",
 }
+_ALIAS_STOPWORDS = {"a", "an", "the"}
 
 
 @dataclass(frozen=True)
@@ -717,14 +718,6 @@ class SdkMethod:
         """
 
         collected: dict[str, Any] = {}
-        if (
-            len(self._operation.path_parameters) == 1 and
-            "id" in remaining
-        ):
-            only_parameter = self._operation.path_parameters[0]
-            if only_parameter.python_name not in remaining and only_parameter.original_name not in remaining:
-                collected[only_parameter.original_name] = remaining.pop("id")
-
         for parameter in self._operation.path_parameters:
             if parameter.original_name in collected:
                 continue
@@ -1051,10 +1044,9 @@ class ZoomSdk:
         """Add simple singular aliases like `user` for `users` namespaces."""
 
         for name, child in list(node._children.items()):
-            if name.endswith("s") and len(name) > 1:
-                singular = name[:-1]
-                if singular and not node.has_member(singular):
-                    node._child_aliases[singular] = child
+            singular = _singularize(name)
+            if singular and singular != name and not node.has_member(singular):
+                node._child_aliases[singular] = child
             self._build_singular_aliases(child)
 
 
@@ -1169,13 +1161,22 @@ def _semantic_aliases(
         else:
             namespace_tokens.add(f"{segment}s")
 
-    reduced_parts = [part for part in parts if part not in namespace_tokens]
+    reduced_parts = [
+        part
+        for part in parts
+        if part not in namespace_tokens and part not in _ALIAS_STOPWORDS
+    ]
     candidates: list[str] = []
 
     if reduced_parts:
         reduced_name = "_".join(reduced_parts)
         if reduced_name not in {operation_name, primary_alias}:
             candidates.append(reduced_name)
+
+    if operation_name not in {primary_alias, *candidates}:
+        normalized_operation_name = _normalize_alias_phrase(operation_name)
+        if normalized_operation_name not in {operation_name, primary_alias, *candidates}:
+            candidates.append(normalized_operation_name)
 
     return tuple(dict.fromkeys(candidates))
 
@@ -1202,3 +1203,33 @@ def _pascal_case(value: str) -> str:
 
     cleaned = _identifier(value)
     return "".join(part.capitalize() for part in cleaned.split("_")) or "Model"
+
+
+def _singularize(value: str) -> str:
+    """Return a lightweight singular form for namespace aliases.
+
+    This deliberately handles only a few common English plural patterns used in
+    Zoom resource names. The goal is to avoid obviously broken aliases like
+    `meeting_summarie` while still staying predictable.
+    """
+
+    if value.endswith("ies") and len(value) > 3:
+        return f"{value[:-3]}y"
+    if value.endswith("ses") and len(value) > 3:
+        return value[:-2]
+    if value.endswith("s") and len(value) > 1 and not value.endswith("ss"):
+        return value[:-1]
+    return value
+
+
+def _normalize_alias_phrase(value: str) -> str:
+    """Clean article-heavy or noisy generated alias phrases."""
+
+    parts = [
+        part
+        for part in _identifier(value).split("_")
+        if part and part not in _ALIAS_STOPWORDS
+    ]
+    if not parts:
+        return _identifier(value)
+    return "_".join(parts)

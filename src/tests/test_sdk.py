@@ -611,6 +611,17 @@ def test_sdk_supports_singular_namespace_and_generic_id_alias(
     assert recorded["path_params"] == {"userId": "1234"}
 
 
+def test_sdk_rejects_non_schema_generic_id_shorthand(tmp_path: Path) -> None:
+    """Reject generic aliases that are not present in the schema contract."""
+
+    client = _build_sdk_client(tmp_path)
+    try:
+        with pytest.raises(TypeError, match="user_id"):
+            client.phone.users.get(id="1234")
+    finally:
+        client.close()
+
+
 def test_sdk_semantic_aliases_expose_cleaner_operation_names(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
