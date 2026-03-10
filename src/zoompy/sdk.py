@@ -46,6 +46,7 @@ _PAGINATION_FIELD_NAMES = {
     "total_pages",
 }
 _ALIAS_STOPWORDS = {"a", "an", "the"}
+_ALIAS_NOISE_TOKENS = {"zoom", "zr", "zpa"}
 
 
 @dataclass(frozen=True)
@@ -1045,7 +1046,12 @@ class ZoomSdk:
 
         for name, child in list(node._children.items()):
             singular = _singularize(name)
-            if singular and singular != name and not node.has_member(singular):
+            if (
+                singular and
+                singular != name and
+                not node.has_member(singular) and
+                (child.has_member("get") or child.has_member("list"))
+            ):
                 node._child_aliases[singular] = child
             self._build_singular_aliases(child)
 
@@ -1166,12 +1172,29 @@ def _semantic_aliases(
         for part in parts
         if part not in namespace_tokens and part not in _ALIAS_STOPWORDS
     ]
+    removed_noise = any(part in _ALIAS_NOISE_TOKENS for part in parts)
+    reduced_parts = [
+        part for part in reduced_parts if part not in _ALIAS_NOISE_TOKENS
+    ]
     candidates: list[str] = []
 
     if reduced_parts:
         reduced_name = "_".join(reduced_parts)
         if reduced_name not in {operation_name, primary_alias}:
             candidates.append(reduced_name)
+
+        if len(reduced_parts) == 1 and namespace:
+            verb = reduced_parts[0]
+            noun = namespace[-1] if verb == "list" else _singularize(namespace[-1])
+            verb_noun = f"{verb}_{noun}"
+            if verb_noun not in {operation_name, primary_alias, *candidates}:
+                candidates.append(verb_noun)
+
+    elif primary_alias is not None and removed_noise and namespace:
+        noun = namespace[-1] if primary_alias == "list" else _singularize(namespace[-1])
+        alias_name = f"{primary_alias}_{noun}"
+        if alias_name not in {operation_name, primary_alias, *candidates}:
+            candidates.append(alias_name)
 
     if operation_name not in {primary_alias, *candidates}:
         normalized_operation_name = _normalize_alias_phrase(operation_name)
@@ -1213,6 +1236,8 @@ def _singularize(value: str) -> str:
     `meeting_summarie` while still staying predictable.
     """
 
+    if value.endswith("ics") and len(value) > 3:
+        return value
     if value.endswith("ies") and len(value) > 3:
         return f"{value[:-3]}y"
     if value.endswith("ses") and len(value) > 3:

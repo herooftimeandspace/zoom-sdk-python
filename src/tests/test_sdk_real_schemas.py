@@ -35,10 +35,17 @@ def test_real_schema_sdk_exposes_expected_top_level_namespaces() -> None:
         assert callable(client.users.get)
         assert callable(client.phone.users.get)
         assert callable(client.phone.users.update_profile)
+        assert callable(client.rooms.get_profile)
+        assert callable(client.rooms.list_rooms)
+        assert callable(client.rooms.delete_room)
+        assert callable(client.whiteboard.get_whiteboard)
+        assert callable(client.whiteboard.update_metadata)
+        assert callable(client.meetings.update_meeting)
         assert callable(client.users.list.iter_pages)
         assert callable(client.users.list.iter_all)
         assert callable(client.users.list.paginate)
         assert callable(client.users.get.raw)
+        assert not hasattr(client.phone, "call_queue_analytic")
     finally:
         client.close()
 
@@ -89,6 +96,11 @@ def test_real_schema_sdk_common_method_names_are_stable() -> None:
         assert client.phone.users.update_profile._operation.operation_id == (
             "updateUserProfile"
         )
+        assert client.rooms.get_profile._operation.operation_id == "getZRProfile"
+        assert client.rooms.list_rooms._operation.operation_id == "listZoomRooms"
+        assert client.whiteboard.update_metadata._operation.operation_id == (
+            "UpdateAWhiteboardMetadata"
+        )
     finally:
         client.close()
 
@@ -108,13 +120,26 @@ def test_real_schema_sdk_golden_matrix_for_major_families() -> None:
             "meetings.meeting_summaries.list": (
                 client.meetings.meeting_summaries.list._operation.operation_id
             ),
+            "meetings.update_meeting": (
+                client.meetings.update_meeting._operation.operation_id
+            ),
             "chat.channels.get": client.chat.channels.get._operation.operation_id,
+            "rooms.add_room": client.rooms.add_room._operation.operation_id,
+            "rooms.delete_room": client.rooms.delete_room._operation.operation_id,
+            "rooms.get_profile": client.rooms.get_profile._operation.operation_id,
+            "rooms.list_rooms": client.rooms.list_rooms._operation.operation_id,
             "rooms.update_profile": client.rooms.update_profile._operation.operation_id,
             "scheduler.schedules.get": (
                 client.scheduler.schedules.get._operation.operation_id
             ),
             "whiteboard.get_whiteboard": (
                 client.whiteboard.get_whiteboard._operation.operation_id
+            ),
+            "whiteboard.delete_whiteboard": (
+                client.whiteboard.delete_whiteboard._operation.operation_id
+            ),
+            "whiteboard.update_metadata": (
+                client.whiteboard.update_metadata._operation.operation_id
             ),
         }
     finally:
@@ -126,10 +151,17 @@ def test_real_schema_sdk_golden_matrix_for_major_families() -> None:
         "phone.users.get": "phoneUser",
         "phone.users.update_profile": "updateUserProfile",
         "meetings.meeting_summaries.list": "Listmeetingsummaries",
+        "meetings.update_meeting": "meetingUpdate",
         "chat.channels.get": "getUserLevelChannel",
+        "rooms.add_room": "addARoom",
+        "rooms.delete_room": "deleteAZoomRoom",
+        "rooms.get_profile": "getZRProfile",
+        "rooms.list_rooms": "listZoomRooms",
         "rooms.update_profile": "updateRoomProfile",
         "scheduler.schedules.get": "get_schedule",
         "whiteboard.get_whiteboard": "GetAWhiteboard",
+        "whiteboard.delete_whiteboard": "DeleteAWhiteboard",
+        "whiteboard.update_metadata": "UpdateAWhiteboardMetadata",
     }
 
 
