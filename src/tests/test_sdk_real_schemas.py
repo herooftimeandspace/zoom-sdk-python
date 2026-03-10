@@ -221,6 +221,256 @@ def test_real_schema_sdk_golden_matrix_for_major_families() -> None:
     }
 
 
+def test_real_schema_sdk_prefers_clean_aliases_for_noisy_families() -> None:
+    """Pin the preferred public aliases on the ugliest real Zoom families.
+
+    The bundled schemas still produce a number of raw fallback names such as
+    `get_a_device`, `getaproject`, and `get_zr_profile`. Those fallbacks are
+    still useful as escape hatches, but they are not the public shape we want
+    people to learn first.
+
+    This test keeps the preferred aliases stable and also proves that the
+    fallback spellings still resolve to the same underlying OpenAPI operation.
+    That makes refactors safer because we can improve alias generation without
+    silently changing which operation a preferred method name calls.
+    """
+
+    client = _build_client()
+    try:
+        alias_pairs = {
+            "phone.devices.get": (
+                client.phone.devices.get._operation.operation_id,
+                client.phone.devices.get_device._operation.operation_id,
+            ),
+            "phone.call_queues.get": (
+                client.phone.call_queues.get._operation.operation_id,
+                client.phone.call_queues.get_call_queue._operation.operation_id,
+            ),
+            "chat.channels.get_account": (
+                client.chat.channels.get_account._operation.operation_id,
+                client.chat.channels.get_account_channels._operation.operation_id,
+            ),
+            "rooms.get_profile": (
+                client.rooms.get_profile._operation.operation_id,
+                client.rooms.get_zr_profile._operation.operation_id,
+            ),
+            "rooms.locations.get_profile": (
+                client.rooms.locations.get_profile._operation.operation_id,
+                client.rooms.locations.get_zr_location_profile._operation.operation_id,
+            ),
+            "whiteboard.get_whiteboard": (
+                client.whiteboard.get_whiteboard._operation.operation_id,
+                client.whiteboard.get_a_whiteboard._operation.operation_id,
+            ),
+            "whiteboard.projects.get": (
+                client.whiteboard.projects.get._operation.operation_id,
+                client.whiteboard.projects.getaproject._operation.operation_id,
+            ),
+        }
+    finally:
+        client.close()
+
+    assert alias_pairs == {
+        "phone.devices.get": ("getADevice", "getADevice"),
+        "phone.call_queues.get": ("getACallQueue", "getACallQueue"),
+        "chat.channels.get_account": (
+            "getAccountChannels",
+            "getAccountChannels",
+        ),
+        "rooms.get_profile": ("getZRProfile", "getZRProfile"),
+        "rooms.locations.get_profile": (
+            "getZRLocationProfile",
+            "getZRLocationProfile",
+        ),
+        "whiteboard.get_whiteboard": (
+            "GetAWhiteboard",
+            "GetAWhiteboard",
+        ),
+        "whiteboard.projects.get": ("Getaproject", "Getaproject"),
+    }
+
+
+def test_real_schema_sdk_keeps_schema_derived_parameter_names() -> None:
+    """Require schema-derived snake_case parameter names on noisy methods.
+
+    Generated SDK methods currently accept `**kwargs`, so Python signatures are
+    intentionally loose. The stable source of truth is the normalized operation
+    metadata behind each method.
+
+    This test pins the path and query parameter names that scripts are expected
+    to use. If alias generation or schema normalization changes accidentally,
+    these assertions make that break obvious immediately.
+    """
+
+    client = _build_client()
+    try:
+        parameter_matrix = {
+            "phone.users.get": {
+                "path": [
+                    parameter.python_name
+                    for parameter in client.phone.users.get._operation.path_parameters
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in client.phone.users.get._operation.query_parameters
+                ],
+            },
+            "phone.users.update_profile": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.phone.users.update_profile._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.phone.users.update_profile._operation.query_parameters
+                    )
+                ],
+            },
+            "phone.call_queues.get": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.phone.call_queues.get._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.phone.call_queues.get._operation.query_parameters
+                    )
+                ],
+            },
+            "phone.devices.get": {
+                "path": [
+                    parameter.python_name
+                    for parameter in client.phone.devices.get._operation.path_parameters
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.phone.devices.get._operation.query_parameters
+                    )
+                ],
+            },
+            "chat.channels.get_account": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.chat.channels.get_account._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.chat.channels.get_account._operation.query_parameters
+                    )
+                ],
+            },
+            "chat.channels.delete_user_level": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.chat.channels.delete_user_level._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.chat.channels.delete_user_level._operation.query_parameters
+                    )
+                ],
+            },
+            "rooms.get_profile": {
+                "path": [
+                    parameter.python_name
+                    for parameter in client.rooms.get_profile._operation.path_parameters
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in client.rooms.get_profile._operation.query_parameters
+                ],
+            },
+            "rooms.locations.get_profile": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.rooms.locations.get_profile._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.rooms.locations.get_profile._operation.query_parameters
+                    )
+                ],
+            },
+            "whiteboard.get_whiteboard": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.whiteboard.get_whiteboard._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.whiteboard.get_whiteboard._operation.query_parameters
+                    )
+                ],
+            },
+            "whiteboard.projects.get": {
+                "path": [
+                    parameter.python_name
+                    for parameter in (
+                        client.whiteboard.projects.get._operation.path_parameters
+                    )
+                ],
+                "query": [
+                    parameter.python_name
+                    for parameter in (
+                        client.whiteboard.projects.get._operation.query_parameters
+                    )
+                ],
+            },
+        }
+    finally:
+        client.close()
+
+    assert parameter_matrix == {
+        "phone.users.get": {"path": ["user_id"], "query": []},
+        "phone.users.update_profile": {"path": ["user_id"], "query": []},
+        "phone.call_queues.get": {"path": ["call_queue_id"], "query": []},
+        "phone.devices.get": {"path": ["device_id"], "query": []},
+        "chat.channels.get_account": {
+            "path": [],
+            "query": ["page_size", "next_page_token"],
+        },
+        "chat.channels.delete_user_level": {
+            "path": ["channel_id"],
+            "query": [],
+        },
+        "rooms.get_profile": {
+            "path": ["room_id"],
+            "query": ["regenerate_activation_code"],
+        },
+        "rooms.locations.get_profile": {
+            "path": ["location_id"],
+            "query": [],
+        },
+        "whiteboard.get_whiteboard": {
+            "path": ["whiteboard_id"],
+            "query": [],
+        },
+        "whiteboard.projects.get": {
+            "path": ["project_id"],
+            "query": [],
+        },
+    }
+
+
 def test_package_exposes_a_stable_version_string() -> None:
     """Expose an explicit package version for outside consumers to pin."""
 
