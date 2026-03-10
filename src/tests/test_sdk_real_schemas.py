@@ -290,6 +290,177 @@ def test_real_schema_sdk_prefers_clean_aliases_for_noisy_families() -> None:
     }
 
 
+def test_real_schema_sdk_exposes_preferred_aliases_on_noisy_families() -> None:
+    """Keep the preferred public surface visible on the ugliest namespaces.
+
+    The SDK still exposes a number of raw generated fallbacks for compatibility
+    and discoverability, but outside callers should be able to rely on a
+    smaller set of clean aliases first. This test pins that preferred shape.
+    """
+
+    client = _build_client()
+    try:
+        preferred_aliases = {
+            "phone.users": {
+                "get": hasattr(client.phone.users, "get"),
+                "list": hasattr(client.phone.users, "list"),
+                "update_profile": hasattr(client.phone.users, "update_profile"),
+            },
+            "phone.devices": {
+                "get": hasattr(client.phone.devices, "get"),
+                "list": hasattr(client.phone.devices, "list"),
+                "update": hasattr(client.phone.devices, "update"),
+                "delete": hasattr(client.phone.devices, "delete"),
+                "create": hasattr(client.phone.devices, "create"),
+            },
+            "chat.channels": {
+                "get": hasattr(client.chat.channels, "get"),
+                "get_account": hasattr(client.chat.channels, "get_account"),
+                "delete_user_level": hasattr(
+                    client.chat.channels, "delete_user_level"
+                ),
+                "update_user_level": hasattr(
+                    client.chat.channels, "update_user_level"
+                ),
+            },
+            "rooms": {
+                "add_room": hasattr(client.rooms, "add_room"),
+                "delete_room": hasattr(client.rooms, "delete_room"),
+                "get_profile": hasattr(client.rooms, "get_profile"),
+                "list_rooms": hasattr(client.rooms, "list_rooms"),
+                "update_profile": hasattr(client.rooms, "update_profile"),
+            },
+            "whiteboard": {
+                "get_whiteboard": hasattr(client.whiteboard, "get_whiteboard"),
+                "delete_whiteboard": hasattr(
+                    client.whiteboard, "delete_whiteboard"
+                ),
+                "update_metadata": hasattr(client.whiteboard, "update_metadata"),
+            },
+            "whiteboard.projects": {
+                "get": hasattr(client.whiteboard.projects, "get"),
+                "list": hasattr(client.whiteboard.projects, "list"),
+                "create": hasattr(client.whiteboard.projects, "create"),
+            },
+        }
+    finally:
+        client.close()
+
+    assert preferred_aliases == {
+        "phone.users": {
+            "get": True,
+            "list": True,
+            "update_profile": True,
+        },
+        "phone.devices": {
+            "get": True,
+            "list": True,
+            "update": True,
+            "delete": True,
+            "create": True,
+        },
+        "chat.channels": {
+            "get": True,
+            "get_account": True,
+            "delete_user_level": True,
+            "update_user_level": True,
+        },
+        "rooms": {
+            "add_room": True,
+            "delete_room": True,
+            "get_profile": True,
+            "list_rooms": True,
+            "update_profile": True,
+        },
+        "whiteboard": {
+            "get_whiteboard": True,
+            "delete_whiteboard": True,
+            "update_metadata": True,
+        },
+        "whiteboard.projects": {
+            "get": True,
+            "list": True,
+            "create": True,
+        },
+    }
+
+
+def test_real_schema_sdk_exposes_typed_models_on_noisy_families() -> None:
+    """Pin typed model availability on the most awkward real operations.
+
+    The SDK is supposed to feel like a scripting SDK, not a thin JSON wrapper.
+    These assertions keep that promise visible on the messy parts of the Zoom
+    surface where it is easiest to regress back toward untyped behavior.
+    """
+
+    client = _build_client()
+    try:
+        model_matrix = {
+            "phone.users.get": {
+                "response": client.phone.users.get.response_model,
+                "request": client.phone.users.get.request_model,
+            },
+            "phone.devices.get": {
+                "response": client.phone.devices.get.response_model,
+                "request": client.phone.devices.get.request_model,
+            },
+            "phone.call_queues.get": {
+                "response": client.phone.call_queues.get.response_model,
+                "request": client.phone.call_queues.get.request_model,
+            },
+            "chat.channels.get": {
+                "response": client.chat.channels.get.response_model,
+                "request": client.chat.channels.get.request_model,
+            },
+            "chat.channels.get_account": {
+                "response": client.chat.channels.get_account.response_model,
+                "request": client.chat.channels.get_account.request_model,
+            },
+            "rooms.get_profile": {
+                "response": client.rooms.get_profile.response_model,
+                "request": client.rooms.get_profile.request_model,
+            },
+            "rooms.locations.get_profile": {
+                "response": client.rooms.locations.get_profile.response_model,
+                "request": client.rooms.locations.get_profile.request_model,
+            },
+            "whiteboard.get_whiteboard": {
+                "response": client.whiteboard.get_whiteboard.response_model,
+                "request": client.whiteboard.get_whiteboard.request_model,
+            },
+            "whiteboard.projects.get": {
+                "response": client.whiteboard.projects.get.response_model,
+                "request": client.whiteboard.projects.get.request_model,
+            },
+            "whiteboard.projects.create": {
+                "response": client.whiteboard.projects.create.response_model,
+                "request": client.whiteboard.projects.create.request_model,
+            },
+        }
+    finally:
+        client.close()
+
+    assert model_matrix["phone.users.get"]["response"] is not None
+    assert model_matrix["phone.devices.get"]["response"] is not None
+    assert model_matrix["phone.call_queues.get"]["response"] is not None
+    assert model_matrix["chat.channels.get"]["response"] is not None
+    assert model_matrix["chat.channels.get_account"]["response"] is not None
+    assert model_matrix["rooms.get_profile"]["response"] is not None
+    assert model_matrix["rooms.locations.get_profile"]["response"] is not None
+    assert model_matrix["whiteboard.get_whiteboard"]["response"] is not None
+    assert model_matrix["whiteboard.projects.get"]["response"] is not None
+    assert model_matrix["whiteboard.projects.create"]["response"] is not None
+    assert model_matrix["whiteboard.projects.create"]["request"] is not None
+
+    for entry in model_matrix.values():
+        response_model = entry["response"]
+        request_model = entry["request"]
+        if response_model is not None:
+            assert issubclass(response_model, BaseModel)
+        if request_model is not None:
+            assert issubclass(request_model, BaseModel)
+
+
 def test_real_schema_sdk_keeps_schema_derived_parameter_names() -> None:
     """Require schema-derived snake_case parameter names on noisy methods.
 
