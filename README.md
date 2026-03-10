@@ -334,15 +334,22 @@ with ZoomClient() as client:
     print(created.email)
 ```
 
-The older low-level model hooks still exist for advanced use:
+Most callers do not need to think about model plumbing at all. The common
+pattern is simply:
+
+- call the SDK method with schema-derived snake_case parameters
+- work with the returned typed model object
+- use `.raw(...)` only when you explicitly want validated JSON
+
+The lower-level model hooks still exist for advanced use and introspection:
 
 - `request_model`
 - `response_model`
 - `.typed(...)`
 
-They are no longer the primary interface. They mainly exist as escape hatches
-for advanced callers and internal testing. If you want plain validated JSON
-instead of model objects, use `.raw(...)`.
+They are no longer the primary interface. They mainly exist for advanced
+callers, tooling, and internal tests. If you want plain validated JSON instead
+of model objects, use `.raw(...)`.
 
 ### Pagination helpers
 
