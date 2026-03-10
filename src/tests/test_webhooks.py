@@ -58,6 +58,29 @@ def _load_spec(path: Path) -> dict[str, Any]:
     return spec
 
 
+def _spec_title(spec: dict[str, Any], path: Path) -> str:
+    """Return the document title used for readable parametrized ids."""
+
+    return str(spec.get("info", {}).get("title", path.stem))
+
+
+def _build_webhook_parametrization() -> tuple[list[Any], list[str]]:
+    """Build pytest parameters and ids for every mirrored webhook event."""
+
+    parameters: list[Any] = []
+    ids: list[str] = []
+    for spec_path in _webhook_spec_paths():
+        spec = _load_spec(spec_path)
+        title = _spec_title(spec, spec_path)
+        for case in build_webhook_cases(spec):
+            parameters.append((spec_path, spec, case))
+            ids.append(
+                f"{snake_case(title)}:"
+                f"{snake_case(case.operation_id)}[{case.method} {case.event_name}]"
+            )
+    return parameters, ids
+
+
 # Load each mirrored webhook spec file as its own top-level pytest parameter.
 @pytest.fixture(params=_webhook_spec_paths(), ids=lambda path: path.stem)
 def webhook_spec_path(request: pytest.FixtureRequest) -> Path:
@@ -120,17 +143,7 @@ def pytest_generate_tests(metafunc: Any) -> None:
     if "webhook_case" not in metafunc.fixturenames:
         return
 
-    parameters: list[Any] = []
-    ids: list[str] = []
-    for spec_path in _webhook_spec_paths():
-        spec = _load_spec(spec_path)
-        title = str(spec.get("info", {}).get("title", spec_path.stem))
-        for case in build_webhook_cases(spec):
-            parameters.append((spec_path, spec, case))
-            ids.append(
-                f"{snake_case(title)}:"
-                f"{snake_case(case.operation_id)}[{case.method} {case.event_name}]"
-            )
+    parameters, ids = _build_webhook_parametrization()
 
     metafunc.parametrize(
         ("webhook_spec_path", "webhook_spec", "webhook_case"),

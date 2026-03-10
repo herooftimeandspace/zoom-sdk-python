@@ -30,6 +30,40 @@ from typing import Any
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 
+def _iter_json_files(root: Any) -> Iterable[Path]:
+    """Recursively yield packaged JSON files from a traversable root.
+
+    The schema package stores endpoint, master-account, and webhook documents
+    in parallel directory trees under `src/zoompy/`. The concrete resource root
+    may be a normal filesystem path or an `importlib.resources` traversable, so
+    this helper keeps the recursion logic in one place instead of repeating it
+    in each registry class.
+    """
+
+    try:
+        children = list(root.iterdir())
+    except FileNotFoundError:
+        return
+
+    for child in children:
+        if child.is_dir():
+            yield from _iter_json_files(child)
+        elif child.name.endswith(".json"):
+            yield Path(str(child))
+
+
+def _load_json_spec(path: Path) -> dict[str, Any]:
+    """Load one OpenAPI document from disk."""
+
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _spec_title(spec: Mapping[str, Any], fallback: str) -> str:
+    """Return the human-readable document title for one loaded spec."""
+
+    return str(spec.get("info", {}).get("title", fallback))
+
+
 @dataclass(frozen=True)
 class SchemaOperation:
     """One path-based HTTP operation extracted from an OpenAPI document.
@@ -579,9 +613,9 @@ class PathOperationIndex:
 
         for root_name in self._path_root_names:
             schema_root = self._resource_root / root_name
-            for schema_path in self._iter_schema_files(schema_root):
-                spec = json.loads(schema_path.read_text(encoding="utf-8"))
-                schema_name = str(spec.get("info", {}).get("title", schema_path.stem))
+            for schema_path in _iter_json_files(schema_root):
+                spec = _load_json_spec(schema_path)
+                schema_name = _spec_title(spec, schema_path.stem)
                 server_url = self._pick_server_url(spec)
 
                 for path, path_item in spec.get("paths", {}).items():
@@ -635,20 +669,6 @@ class PathOperationIndex:
                         prefix = self._path_prefix(path)
                         self._operations_by_prefix.setdefault(prefix, []).append(entry)
                         self._all_operations.append(entry)
-
-    def _iter_schema_files(self, root: Any) -> Iterable[Path]:
-        """Recursively yield packaged JSON schema files from a traversable root."""
-
-        try:
-            children = list(root.iterdir())
-        except FileNotFoundError:
-            return
-
-        for child in children:
-            if child.is_dir():
-                yield from self._iter_schema_files(child)
-            elif child.name.endswith(".json"):
-                yield Path(str(child))
 
     def _compile_path_regex(self, path: str) -> re.Pattern[str]:
         """Compile one templated OpenAPI path into a concrete regex."""
@@ -780,9 +800,9 @@ class WebhookRegistry:
         """Load every bundled webhook document into the event lookup table."""
 
         webhook_root = self._resource_root / self._webhook_root_name
-        for schema_path in self._iter_schema_files(webhook_root):
-            spec = json.loads(schema_path.read_text(encoding="utf-8"))
-            schema_name = str(spec.get("info", {}).get("title", schema_path.stem))
+        for schema_path in _iter_json_files(webhook_root):
+            spec = _load_json_spec(schema_path)
+            schema_name = _spec_title(spec, schema_path.stem)
             webhooks = spec.get("webhooks", {})
             if not isinstance(webhooks, Mapping):
                 continue
@@ -836,20 +856,6 @@ class WebhookRegistry:
         if isinstance(schema, Mapping):
             return schema
         return None
-
-    def _iter_schema_files(self, root: Any) -> Iterable[Path]:
-        """Recursively yield packaged JSON webhook files from a root."""
-
-        try:
-            children = list(root.iterdir())
-        except FileNotFoundError:
-            return
-
-        for child in children:
-            if child.is_dir():
-                yield from self._iter_schema_files(child)
-            elif child.name.endswith(".json"):
-                yield Path(str(child))
 
 
 class SchemaRegistry:
