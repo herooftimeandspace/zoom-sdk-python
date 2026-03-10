@@ -52,22 +52,29 @@ threading lock prevents concurrent refresh storms in multi-threaded programs.
 
 ### Schema validation
 
-The package bundles OpenAPI schema files under `src/zoompy/schemas/**`. Every
+The package bundles OpenAPI schema files under `src/zoompy/endpoints/**`. Every
 successful JSON response is validated against the matching schema operation and
 status code.
 
-`src/zoompy/schemas` is the canonical endpoint schema tree. The repository also
-keeps a mirrored copy under `src/tests/schemas` because the existing contract
-tests load schema files directly by path.
+`src/zoompy/endpoints` is the canonical ordinary endpoint schema tree. The
+repository also keeps a mirrored copy under `src/tests/endpoints` because the
+existing contract tests load schema files directly by path.
 
-Webhook OpenAPI documents are synced separately under `src/zoompy/webhooks` and
-mirrored to `src/tests/webhooks`. They are stored outside the main schema tree
-because webhook specs use the OpenAPI `webhooks` section rather than `paths`,
-so they should not be mixed into the client's response-validation registry.
+Master-account OpenAPI documents are synced separately under
+`src/zoompy/master_accounts` and mirrored to `src/tests/master_accounts`.
+They remain outside the ordinary endpoint tree so the repository can keep a
+clean one-to-one mirror of Zoom's product-family layout without colliding with
+ordinary endpoint filenames.
 
-Use `scripts/sync_schemas.py` to refresh both endpoint and webhook documents
-from a manually curated URL list and mirror them into the test tree in one
-step.
+Webhook OpenAPI documents are synced separately under `src/zoompy/webhooks`
+and mirrored to `src/tests/webhooks`. They are stored outside the path-based
+API trees because webhook specs use the OpenAPI `webhooks` section rather than
+`paths`, so they should not be mixed into the client's response-validation
+registry.
+
+Use `scripts/sync_schemas.py` to refresh endpoint, master-account, and webhook
+documents from a manually curated URL list and mirror them into the test tree
+in one step.
 
 If the response body does not match the documented schema, `zoompy` raises
 `ValueError` with a concise message that includes:
@@ -379,7 +386,8 @@ pytest -m integration
 This repository uses multiple layers of testing:
 
 1. schema-driven contract tests under `src/tests`
-   These verify request and response behavior against bundled OpenAPI schemas.
+   These verify request, response, webhook, and master-account behavior against
+   bundled OpenAPI schemas.
 2. client integration fixtures in `src/tests/conftest.py`
    These connect the contract tests to the real production client.
 3. integration smoke test under `src/tests/integration`
@@ -394,17 +402,21 @@ mirror the canonical tree into the test tree, run:
 
 Edit `scripts/schema_urls.json` first so it contains the exact endpoint schema
 JSON URLs you want to trust and download. For each endpoint URL, the sync script
-also derives the companion `events/webhooks.json` URL automatically.
+also derives the companion `events/webhooks.json` and `ma/master.json` URLs
+automatically.
 
 The sync script matches each downloaded schema to a local file by the schema's
 `info.title`, not by the remote URL basename, so URLs like
 `.../meetings/methods/endpoints.json` still update `Meetings.json`. You can
 also provide `expected_title` in the manifest to make that mapping explicit.
-If a webhook document uses a different title than its endpoint schema, provide
-`webhook_expected_title` as well. Webhook URLs that return `404` are treated as
-optional and do not fail the whole sync.
+If a webhook or master-account document uses a different title than its
+ordinary endpoint schema, provide `webhook_expected_title` or
+`master_account_expected_title` in the manifest. Derived webhook and
+master-account URLs that return `404` are treated as optional and do not fail
+the whole sync.
 
-To only rebuild the test mirror from the canonical package schemas, run:
+To only rebuild the test mirror from the canonical package endpoint,
+master-account, and webhook trees, run:
 
 ```bash
 ./.venv/bin/python scripts/sync_schemas.py --mirror-only
