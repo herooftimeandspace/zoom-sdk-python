@@ -404,7 +404,6 @@ class SdkMethod:
         Supported conventions:
 
         * required path parameters may be passed in snake_case or original form
-        * a generic `id=` alias works when exactly one path parameter exists
         * known query parameters stay query parameters
         * leftover keyword arguments become JSON body fields for body-capable
           operations
