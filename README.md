@@ -152,12 +152,18 @@ The client reads the following environment variables:
 - `ZOOM_ACCOUNT_ID`
 - `ZOOM_CLIENT_ID`
 - `ZOOM_CLIENT_SECRET`
-- `ZOOM_BASE_URL` (default: `https://api.zoom.us/v2`)
+- `ZOOM_BASE_URL` (default fallback: `https://api.zoom.us/v2`)
 - `ZOOM_OAUTH_URL` (default: `https://zoom.us`)
 - `ZOOM_TOKEN_SKEW_SECONDS` (default: `60`)
 
 You may also pass these values directly to `ZoomClient(...)` as constructor
 arguments. Explicit constructor values win over environment values.
+
+`ZOOM_BASE_URL` is the client's fallback base URL. When the matched bundled
+OpenAPI schema declares a more specific server URL for an endpoint family, the
+client prefers that schema-declared server. This matters for endpoint groups
+such as Clips, SCIM, and file-upload APIs that do not consistently live under
+the default `/v2` server URL.
 
 If you already have a bearer token from another system, you can bypass OAuth:
 
@@ -170,8 +176,8 @@ brokers.
 
 ## `.env` Support
 
-For local development, `zoompy` supports a repository-root `.env` file without
-adding a dotenv dependency.
+For local development, `zoompy` supports a `.env` file without adding a dotenv
+dependency.
 
 Behavior:
 
@@ -179,6 +185,8 @@ Behavior:
 - blank lines are ignored
 - comment lines are ignored
 - surrounding quotes are stripped
+- the loader walks upward from the current working directory until it finds a
+  directory containing `pyproject.toml`, then reads `.env` from there
 
 Example:
 
@@ -250,7 +258,9 @@ For each successful JSON response, the client:
    - any `2xx` fallback
    - `default` fallback
 4. resolves local `$ref` references
-5. validates the parsed JSON with `Draft202012Validator`
+5. normalizes minor upstream schema irregularities, such as capitalized type
+   names like `Integer`
+6. validates the parsed JSON with `Draft202012Validator`
 
 If no matching operation is found, the client raises `ValueError`. This is
 intentional: schema validation is always on, so "unknown endpoint behavior"
