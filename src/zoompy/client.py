@@ -534,6 +534,23 @@ class ZoomClient:
 
         return int((time.monotonic() - started_at) * 1000)
 
+    def _log_event(
+        self,
+        level: str,
+        message: str,
+        **extra: Any,
+    ) -> None:
+        """Emit one structured log line through the package logger.
+
+        The client emits several request lifecycle events with slightly
+        different fields. Routing them through one helper keeps the call sites
+        shorter and makes it easier to audit which structured fields leave the
+        runtime layer.
+        """
+
+        log_method = getattr(self._logger, level)
+        log_method(message, extra=extra)
+
     def _log_request_attempt(
         self,
         *,
@@ -544,15 +561,14 @@ class ZoomClient:
     ) -> None:
         """Emit a structured log describing an outbound request attempt."""
 
-        self._logger.info(
+        self._log_event(
+            "info",
             "Sending Zoom API request.",
-            extra={
-                "event": "request_attempt",
-                "method": method,
-                "url": url,
-                "path": path,
-                "retry_attempt": retry_attempt,
-            },
+            event="request_attempt",
+            method=method,
+            url=url,
+            path=path,
+            retry_attempt=retry_attempt,
         )
 
     def _log_response(
@@ -566,18 +582,17 @@ class ZoomClient:
     ) -> None:
         """Emit a structured log describing a received HTTP response."""
 
-        self._logger.info(
+        self._log_event(
+            "info",
             "Received Zoom API response.",
-            extra={
-                "event": "response_received",
-                "method": method,
-                "url": url,
-                "path": path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-                "request_id": response.headers.get("x-request-id"),
-                "trace_id": response.headers.get("x-zm-trackingid"),
-            },
+            event="response_received",
+            method=method,
+            url=url,
+            path=path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+            request_id=response.headers.get("x-request-id"),
+            trace_id=response.headers.get("x-zm-trackingid"),
         )
 
     def _log_retry(
@@ -594,19 +609,16 @@ class ZoomClient:
     ) -> None:
         """Emit a structured log describing a retry decision."""
 
-        self._logger.warning(
+        self._log_event(
+            "warning",
             "Retrying Zoom API request after a retriable failure.",
-            extra={
-                "event": "request_retry",
-                "method": method,
-                "url": url,
-                "path": path,
-                "status_code": status_code,
-                "duration_ms": duration_ms,
-                "retry_attempt": retry_attempt,
-                "error_type": "retry",
-                "error_message": (
-                    f"{reason}; sleeping for {sleep_seconds:.2f} seconds"
-                ),
-            },
+            event="request_retry",
+            method=method,
+            url=url,
+            path=path,
+            status_code=status_code,
+            duration_ms=duration_ms,
+            retry_attempt=retry_attempt,
+            error_type="retry",
+            error_message=f"{reason}; sleeping for {sleep_seconds:.2f} seconds",
         )
