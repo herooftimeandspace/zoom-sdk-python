@@ -1,9 +1,14 @@
 # zoompy
 
-`zoompy` is a production-ready Python library for the Zoom REST API. The
-package provides a single unified client, handles Server-to-Server OAuth token
-acquisition internally, validates responses against bundled OpenAPI schemas, and
-ships with a large schema-driven contract test suite.
+`zoompy` is a production-ready Python SDK for the Zoom REST API. It combines:
+
+- a schema-driven scripting SDK such as `client.users.get(...)`
+- a lower-level validated `request(...)` escape hatch
+- Server-to-Server OAuth token acquisition and caching
+- bundled OpenAPI validation for responses and webhooks
+- retry and backoff logic
+- structured logging
+- a large schema-driven contract suite
 
 The repository is intentionally built around contract tests. Instead of manually
 coding and hand-testing every endpoint family separately, the test suite derives
@@ -11,27 +16,51 @@ expected request and response behavior from Zoom's published schema documents.
 The library implementation is designed to satisfy those contracts while still
 remaining readable, typed, and suitable for real application code.
 
-## Discliamer
-`zoompy` was written with heavy ChatGPT use.
-
 ## Features
 
-### Unified request interface
+### SDK-first interface
 
-The public API is centered around one method:
+The normal way to use `zoompy` is through the generated SDK surface:
 
 ```python
 from zoompy import ZoomClient
 
-client = ZoomClient()
-result = client.request(
-    "GET",
-    "/users/{userId}",
-    path_params={"userId": "me"},
-)
+with ZoomClient() as client:
+    me = client.users.get(user_id="me")
+    phone_user = client.phone.users.get(user_id="abc123")
+    meetings = client.meetings.meeting_summaries.list(page_size=10)
 ```
 
-The method handles:
+Normal SDK calls:
+
+- use schema-derived snake_case parameter names
+- return typed Pydantic model objects when representative response schemas
+  exist
+- expose `.raw(...)` when you explicitly want validated JSON instead
+- expose pagination helpers such as `iter_pages(...)`, `iter_all(...)`, and
+  `paginate(...)`
+
+Under the hood, every SDK call still delegates to the same validated request
+core, so the ergonomic layer does not bypass retries, logging, auth, or schema
+validation.
+
+### Unified request interface
+
+The lower-level runtime core is still available when you want direct control
+over method and path handling:
+
+```python
+from zoompy import ZoomClient
+
+with ZoomClient() as client:
+    result = client.request(
+        "GET",
+        "/users/{userId}",
+        path_params={"userId": "me"},
+    )
+```
+
+That lower-level interface handles:
 
 - path parameter substitution
 - authorization header injection
@@ -43,25 +72,6 @@ The method handles:
 The same `request()` method supports both ordinary Zoom endpoints and
 master-account endpoints. `zoompy` loads both path-based schema families and
 selects the matching OpenAPI operation from the request path automatically.
-
-### Layered SDK interface
-
-`request()` remains the transport core, but `zoompy` now also builds a dynamic
-SDK surface from the bundled OpenAPI operations. That gives script authors a
-friendlier interface without duplicating the runtime logic:
-
-```python
-from zoompy import ZoomClient
-
-with ZoomClient() as client:
-    users = client.users.list(page_size=10)
-    me = client.users.get(user_id="me")
-    phone_user = client.phone.users.get(user_id="abc123")
-```
-
-Those SDK calls still delegate to the same validated `request()` method
-internally. In other words, the ergonomic layer is additive; it does not
-replace the low-level client.
 
 ### SDK stability
 
@@ -144,10 +154,12 @@ If the response body does not match the documented schema, `zoompy` raises
 ### Structured logging
 
 Structured logging is implemented with the standard library `logging` module
-only. Logging is opt-in, so the library does not configure handlers unless you
-ask it to.
+only. The `zoompy` logger defaults to the `INFO` level, but the library still
+does not choose an output destination for you. Applications remain responsible
+for attaching console, file, or other logging handlers.
 
-Enable logging like this:
+If you want `zoompy` to emit its built-in JSON logs to stderr, enable it like
+this:
 
 ```python
 from zoompy import ZoomClient, configure_logging
@@ -216,7 +228,7 @@ The package is intentionally split into a few small modules:
 - `zoompy.schema`
   OpenAPI indexing, webhook lookup, `$ref` resolution, and payload validation.
 - `zoompy.logging`
-  JSON log formatting and opt-in logger configuration.
+  JSON log formatting and logger configuration helpers.
 
 This separation matters because future maintainers can usually answer one
 question by opening one module instead of tracing everything through the client.
@@ -443,7 +455,7 @@ package docstrings using `pdoc`.
 Build the docs locally with:
 
 ```bash
-PYTHONPATH=src pdoc -d google -o site zoompy
+PYTHONPATH=src ./.venv/bin/python -m pdoc -d google -o site zoompy
 ```
 
 That command writes a static site into `site/`. Open `site/index.html` in a
@@ -509,21 +521,21 @@ in the application that receives the webhook.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+./.venv/bin/python -m pip install -r requirements.txt
+./.venv/bin/python -m pip install -e .
 ```
 
 ### Run static checks
 
 ```bash
-ruff check .
-mypy src
+./.venv/bin/python -m ruff check .
+./.venv/bin/python -m mypy src _openapi_contract.py
 ```
 
 ### Run tests
 
 ```bash
-pytest -m "not integration"
+./.venv/bin/python -m pytest -m "not integration"
 ```
 
 ### Run integration smoke test
@@ -532,7 +544,7 @@ The integration suite is intentionally minimal. It exists to prove that live
 credentials can successfully acquire an OAuth token.
 
 ```bash
-pytest -m integration
+./.venv/bin/python -m pytest -m integration
 ```
 
 If the required Zoom credentials are missing, the integration test is skipped.
@@ -560,7 +572,7 @@ GitHub Actions runs the main quality gates on every push and every pull
 request:
 
 - `ruff check .`
-- `mypy src`
+- `mypy src _openapi_contract.py`
 - `python -m build`
 - `pytest -m "not integration"`
 - API docs generation with `pdoc`
@@ -596,7 +608,7 @@ Runs on every push and pull request:
 - Python 3.14 setup
 - dependency installation
 - `ruff check`
-- `mypy`
+- `mypy src _openapi_contract.py`
 - `python -m build`
 - `pytest -m "not integration"`
 
