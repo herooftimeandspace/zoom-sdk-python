@@ -19,14 +19,21 @@ from typing import Any
 
 import pytest
 
-# Pytest loads `conftest.py` before importing the package under test. When the
-# developer runs pytest directly from the repository root without first doing an
-# editable install, `src/` is not automatically on `sys.path`, so `import
-# zoompy` fails. We add the repository `src` directory here to make local test
-# runs behave the same way as an editable install.
-PROJECT_SRC = Path(__file__).resolve().parents[1]
-if str(PROJECT_SRC) not in sys.path:
-    sys.path.insert(0, str(PROJECT_SRC))
+# Pytest loads `conftest.py` before importing the package under test. In a clean
+# CI runner we need two bootstrap paths:
+#
+# * the repository root, so shared helpers like `_openapi_contract.py` import
+#   cleanly during test collection
+# * `src/`, so `import zoompy` behaves the same way as an editable install
+#
+# Keeping both paths here makes local runs and GitHub Actions collection behave
+# the same way without requiring a packaging install step just to import tests.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_SRC = PROJECT_ROOT / "src"
+for bootstrap_path in (PROJECT_ROOT, PROJECT_SRC):
+    bootstrap_text = str(bootstrap_path)
+    if bootstrap_text not in sys.path:
+        sys.path.insert(0, bootstrap_text)
 
 from zoompy import ZoomClient
 
