@@ -31,10 +31,13 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Build API docs with pdoc
+      - name: Build documentation source tree
         run: |
-          rm -rf site
-          PYTHONPATH=src pdoc -d google -o site zoompy
+          python scripts/build_docs.py
+
+      - name: Build documentation site
+        run: |
+          python -m mkdocs build --strict
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

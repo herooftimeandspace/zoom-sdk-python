@@ -22,6 +22,8 @@ __pycache__/
 build/
 dist/
 site/
+docs/generated/
+docs/api_html/
 *.egg-info/
 .eggs/
 *.egg

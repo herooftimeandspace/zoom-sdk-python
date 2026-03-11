@@ -30,8 +30,10 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Build API docs
-        run: PYTHONPATH=src pdoc -d google -o site zoompy
+      - name: Build documentation site
+        run: |
+          python scripts/build_docs.py
+          python -m mkdocs build --strict
 
       - name: Run unit tests
         run: pytest -m "not integration"
