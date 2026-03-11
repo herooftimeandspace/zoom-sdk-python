@@ -8,9 +8,9 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
 
@@ -49,9 +49,9 @@ jobs:
       ZOOM_OAUTH_URL: ${{ secrets.ZOOM_OAUTH_URL }}
       ZOOM_TOKEN_SKEW_SECONDS: ${{ secrets.ZOOM_TOKEN_SKEW_SECONDS }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
 
