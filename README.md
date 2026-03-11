@@ -425,7 +425,6 @@ The lower-level model hooks still exist for advanced use and introspection:
 
 - `request_model`
 - `response_model`
-- `.typed(...)`
 
 They are no longer the primary interface. They mainly exist for advanced
 callers, tooling, and internal tests. If you want plain validated JSON instead

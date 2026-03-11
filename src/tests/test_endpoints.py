@@ -182,7 +182,6 @@ def test_endpoint_operation_contract(
 def test_endpoint_client_uses_callable_fixture(
     request: pytest.FixtureRequest,
     endpoint_spec_path: Path,
-    endpoint_spec: dict[str, Any],
 ) -> None:
     """Ensure the fixture chosen for one endpoint family still satisfies the contract."""
 

@@ -637,11 +637,6 @@ class SdkMethod:
 
         return self._get_models().response_model
 
-    def typed(self, **kwargs: Any) -> BaseModel | dict[str, Any] | list[Any] | None:
-        """Backward-compatible alias for the default typed SDK behavior."""
-
-        return self(**kwargs)
-
     def _normalize_typed_body(
         self,
         *,

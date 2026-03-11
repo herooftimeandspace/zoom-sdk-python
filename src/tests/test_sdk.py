@@ -545,7 +545,7 @@ def test_sdk_calls_return_model_instances_with_pythonic_fields_by_default(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Return typed models by default instead of requiring `.typed(...)`."""
+    """Return typed models by default from normal SDK calls."""
 
     client = _build_sdk_client(tmp_path)
 
@@ -559,6 +559,7 @@ def test_sdk_calls_return_model_instances_with_pythonic_fields_by_default(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, params, json, headers, timeout)
         return {
             "userId": path_params["userId"],
             "displayName": "Ada Lovelace",
@@ -602,6 +603,7 @@ def test_sdk_rejects_invalid_typed_response_payloads(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, path_params, params, json, headers, timeout)
         return {
             "displayName": "Ada Lovelace",
         }
@@ -634,6 +636,7 @@ def test_sdk_validates_request_bodies_before_sending_by_default(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, path_params, params, headers, timeout)
         recorded["json"] = json
         return {"id": "abc123", "email": json["email"]}
 
@@ -669,7 +672,7 @@ def test_sdk_rejects_invalid_request_bodies_by_default(
         client.close()
 
 
-def test_sdk_supports_singular_namespace_and_generic_id_alias(
+def test_sdk_supports_singular_namespaces_with_schema_native_parameters(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -688,6 +691,7 @@ def test_sdk_supports_singular_namespace_and_generic_id_alias(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, params, json, headers, timeout)
         recorded["path_params"] = path_params
         return {"userId": path_params["userId"]}
 
@@ -734,6 +738,7 @@ def test_sdk_semantic_aliases_expose_cleaner_operation_names(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (params, headers, timeout)
         recorded.update(
             {
                 "method": method,
@@ -794,6 +799,7 @@ def test_sdk_iter_pages_follows_next_page_tokens(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (path_params, json, headers, timeout)
         calls.append({"method": method, "path": path, "params": params})
         return responses[len(calls) - 1]
 
@@ -844,6 +850,7 @@ def test_sdk_iter_all_yields_collection_items_across_pages(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, path_params, params, json, headers, timeout)
         nonlocal call_count
         call_count += 1
         return responses[call_count - 1]
@@ -891,6 +898,7 @@ def test_sdk_paginate_exposes_page_metadata(
         headers: Any = None,
         timeout: Any = None,
     ) -> dict[str, Any]:
+        _ = (method, path, path_params, params, json, headers, timeout)
         nonlocal call_count
         call_count += 1
         return responses[call_count - 1]

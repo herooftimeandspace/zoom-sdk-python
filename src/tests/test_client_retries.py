@@ -35,6 +35,7 @@ class _NoOpSchemaRegistry:
         actual_path: str,
         fallback: str,
     ) -> str:
+        _ = (method, raw_path, actual_path)
         return fallback
 
     def validate_response(
@@ -46,6 +47,7 @@ class _NoOpSchemaRegistry:
         status_code: int,
         payload: Any,
     ) -> None:
+        _ = (method, raw_path, actual_path, status_code, payload)
         return None
 
 
@@ -83,6 +85,7 @@ def test_request_retries_transport_errors_once_before_success(
         headers: Any = None,
         timeout: Any = None,
     ) -> httpx.Response:
+        _ = (params, json, headers, timeout)
         nonlocal calls
         calls += 1
         request = httpx.Request(method, url)
