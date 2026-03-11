@@ -24,7 +24,7 @@ import pytest
 #
 # * the repository root, so shared helpers like `_openapi_contract.py` import
 #   cleanly during test collection
-# * `src/`, so `import zoompy` behaves the same way as an editable install
+# * `src/`, so `import zoom_sdk` behaves the same way as an editable install
 #
 # Keeping both paths here makes local runs and GitHub Actions collection behave
 # the same way without requiring a packaging install step just to import tests.
@@ -35,7 +35,7 @@ for bootstrap_path in (PROJECT_ROOT, PROJECT_SRC):
     if bootstrap_text not in sys.path:
         sys.path.insert(0, bootstrap_text)
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 
 RequestCallable = Callable[..., dict[str, Any] | list[Any] | None]

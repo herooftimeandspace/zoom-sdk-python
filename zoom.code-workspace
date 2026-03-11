@@ -4,7 +4,7 @@
 			"path": "."
 		},
 		{
-			"path": "../zoompy"
+			"path": "../zoom-sdk-python"
 		}
 	],
 	"settings": {}

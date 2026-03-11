@@ -21,8 +21,8 @@ from typing import Any, cast
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from zoompy import ZoomClient
-from zoompy.schema import SchemaRegistry
+from zoom_sdk import ZoomClient
+from zoom_sdk.schema import SchemaRegistry
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

@@ -1,6 +1,10 @@
-# zoompy
+# zoom-sdk-python
 
-`zoompy` is a production-ready Python SDK for the Zoom REST API. It combines:
+`zoom-sdk-python` is a production-ready Python SDK for the Zoom REST API. The
+published package name is `zoom-sdk-python`, and the Python import package is
+`zoom_sdk`.
+
+It combines:
 
 - a schema-driven scripting SDK such as `client.users.get(...)`
 - a lower-level validated `request(...)` escape hatch
@@ -20,10 +24,10 @@ remaining readable, typed, and suitable for real application code.
 
 ### SDK-first interface
 
-The normal way to use `zoompy` is through the generated SDK surface:
+The normal way to use `zoom_sdk` is through the generated SDK surface:
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     me = client.users.get(user_id="me")
@@ -52,7 +56,7 @@ The lower-level runtime core is still available when you want direct control
 over method and path handling:
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     result = client.request(
@@ -72,7 +76,7 @@ That lower-level interface handles:
 - OpenAPI response validation
 
 The same `request()` method supports both ordinary Zoom endpoints and
-master-account endpoints. `zoompy` loads both path-based schema families and
+master-account endpoints. `zoom_sdk` loads both path-based schema families and
 selects the matching OpenAPI operation from the request path automatically.
 
 ### SDK stability
@@ -101,11 +105,11 @@ Compatibility policy:
   the SDK contract
 - breaking SDK changes should be called out explicitly in
   [CHANGELOG.md](./CHANGELOG.md)
-- package releases expose a version string at `zoompy.__version__`
+- package releases expose a version string at `zoom_sdk.__version__`
 
 ### Token caching and Server-to-Server OAuth
 
-When you do not provide an explicit `access_token`, `zoompy` performs the Zoom
+When you do not provide an explicit `access_token`, `zoom_sdk` performs the Zoom
 Server-to-Server OAuth account credentials flow automatically:
 
 - `POST https://zoom.us/oauth/token`
@@ -118,21 +122,21 @@ threading lock prevents concurrent refresh storms in multi-threaded programs.
 
 ### Schema validation
 
-The package bundles OpenAPI schema files under `src/zoompy/endpoints/**`. Every
+The package bundles OpenAPI schema files under `src/zoom_sdk/endpoints/**`. Every
 successful JSON response is validated against the matching schema operation and
 status code.
 
-`src/zoompy/endpoints` is the canonical ordinary endpoint schema tree. The
+`src/zoom_sdk/endpoints` is the canonical ordinary endpoint schema tree. The
 repository also keeps a mirrored copy under `src/tests/endpoints` because the
 existing contract tests load schema files directly by path.
 
 Master-account OpenAPI documents are synced separately under
-`src/zoompy/master_accounts` and mirrored to `src/tests/master_accounts`.
+`src/zoom_sdk/master_accounts` and mirrored to `src/tests/master_accounts`.
 They remain outside the ordinary endpoint tree so the repository can keep a
 clean one-to-one mirror of Zoom's product-family layout without colliding with
 ordinary endpoint filenames.
 
-Webhook OpenAPI documents are synced separately under `src/zoompy/webhooks`
+Webhook OpenAPI documents are synced separately under `src/zoom_sdk/webhooks`
 and mirrored to `src/tests/webhooks`. They are stored outside the path-based
 API trees because webhook specs use the OpenAPI `webhooks` section rather than
 `paths`, so they should not be mixed into the client's response-validation
@@ -145,7 +149,7 @@ in one step.
 Those webhook schemas now serve both the repository's contract suites and the
 runtime webhook validator exposed by `ZoomClient.validate_webhook(...)`.
 
-If the response body does not match the documented schema, `zoompy` raises
+If the response body does not match the documented schema, `zoom_sdk` raises
 `ValueError` with a concise message that includes:
 
 - HTTP method
@@ -156,15 +160,15 @@ If the response body does not match the documented schema, `zoompy` raises
 ### Structured logging
 
 Structured logging is implemented with the standard library `logging` module
-only. The `zoompy` logger defaults to the `INFO` level, but the library still
+only. The `zoom_sdk` logger defaults to the `INFO` level, but the library still
 does not choose an output destination for you. Applications remain responsible
 for attaching console, file, or other logging handlers.
 
-If you want `zoompy` to emit its built-in JSON logs to stderr, enable it like
+If you want `zoom_sdk` to emit its built-in JSON logs to stderr, enable it like
 this:
 
 ```python
-from zoompy import ZoomClient, configure_logging
+from zoom_sdk import ZoomClient, configure_logging
 
 configure_logging(level="INFO")
 client = ZoomClient()
@@ -221,15 +225,15 @@ the configured maximum.
 
 The package is intentionally split into a few small modules:
 
-- `zoompy.client`
+- `zoom_sdk.client`
   The public `ZoomClient` implementation and request lifecycle.
-- `zoompy.auth`
+- `zoom_sdk.auth`
   Token acquisition and in-memory token caching.
-- `zoompy.config`
+- `zoom_sdk.config`
   Environment loading and normalized settings assembly.
-- `zoompy.schema`
+- `zoom_sdk.schema`
   OpenAPI indexing, webhook lookup, `$ref` resolution, and payload validation.
-- `zoompy.logging`
+- `zoom_sdk.logging`
   JSON log formatting and logger configuration helpers.
 
 This separation matters because future maintainers can usually answer one
@@ -267,7 +271,7 @@ brokers.
 
 ## `.env` Support
 
-For local development, `zoompy` supports a `.env` file without adding a dotenv
+For local development, `zoom_sdk` supports a `.env` file without adding a dotenv
 dependency.
 
 Behavior:
@@ -294,7 +298,7 @@ See [.env.example](./.env.example).
 ### Simple request
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 client = ZoomClient()
 
@@ -307,7 +311,7 @@ finally:
 ### SDK-style access
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     users = client.users.list(page_size=10)
@@ -340,7 +344,7 @@ Example:
 ```python
 import logging
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 logger = logging.getLogger(__name__)
 
@@ -383,7 +387,7 @@ Example:
 import inspect
 import logging
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 logger = logging.getLogger(__name__)
 
@@ -403,7 +407,7 @@ Example:
 ```python
 import logging
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 logger = logging.getLogger(__name__)
 
@@ -437,7 +441,7 @@ Most Zoom list endpoints use `next_page_token`. The SDK exposes that directly:
 ```python
 import logging
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 logger = logging.getLogger(__name__)
 
@@ -458,7 +462,7 @@ with ZoomClient() as client:
 ### Context manager
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     meeting = client.request(
@@ -471,7 +475,7 @@ with ZoomClient() as client:
 ### Webhook validation
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     client.validate_webhook(
@@ -499,7 +503,7 @@ client = ZoomClient(
 ### Structured logging
 
 ```python
-from zoompy import ZoomClient, configure_logging
+from zoom_sdk import ZoomClient, configure_logging
 
 configure_logging(level="DEBUG")
 
@@ -570,7 +574,7 @@ should fail loudly rather than silently skipping validation.
 
 ## Error Handling
 
-`zoompy` raises:
+`zoom_sdk` raises:
 
 - `httpx.HTTPStatusError`
   for non-2xx responses after retry exhaustion
@@ -580,7 +584,7 @@ should fail loudly rather than silently skipping validation.
 That split keeps transport/HTTP failures clearly separate from contract
 violations.
 
-## What zoompy does not do
+## What zoom_sdk does not do
 
 The library is intentionally focused. At the moment it does not:
 

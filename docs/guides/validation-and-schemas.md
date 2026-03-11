@@ -1,13 +1,13 @@
 # Validation and Schemas
 
-`zoompy` is built around bundled OpenAPI documents. They serve three different
+`zoom_sdk` is built around bundled OpenAPI documents. They serve three different
 jobs in the repository:
 
 ## Endpoint schemas
 
 Ordinary outbound API documents live under:
 
-- `src/zoompy/endpoints`
+- `src/zoom_sdk/endpoints`
 
 The runtime client uses them to:
 
@@ -20,7 +20,7 @@ The runtime client uses them to:
 
 Master-account API documents live under:
 
-- `src/zoompy/master_accounts`
+- `src/zoom_sdk/master_accounts`
 
 They are loaded into the same path-based registry as ordinary endpoints, which
 means `ZoomClient.request(...)` and the dynamic SDK can use them transparently.
@@ -29,7 +29,7 @@ means `ZoomClient.request(...)` and the dynamic SDK can use them transparently.
 
 Webhook documents live under:
 
-- `src/zoompy/webhooks`
+- `src/zoom_sdk/webhooks`
 
 They do not belong in the path-based request registry because they describe
 incoming webhook payloads, not outbound REST requests. The runtime webhook
@@ -59,7 +59,7 @@ The client validates:
 - successful JSON responses from outbound API requests
 - incoming webhook payloads when you call the webhook validator
 
-If a payload does not match the documented schema, `zoompy` raises
+If a payload does not match the documented schema, `zoom_sdk` raises
 `ValueError`.
 
 The runtime also includes a small amount of schema normalization so it can

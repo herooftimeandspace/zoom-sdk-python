@@ -1,6 +1,6 @@
-"""Public package exports for the `zoompy` library.
+"""Public package exports for the `zoom_sdk` library.
 
-`zoompy` intentionally exposes a small top-level import surface:
+`zoom_sdk` intentionally exposes a small top-level import surface:
 
 * :class:`ZoomClient` is the main entry point for both the low-level request
   API and the higher-level dynamic SDK.
@@ -14,7 +14,7 @@ most common import looks like:
 
 .. code-block:: python
 
-    from zoompy import ZoomClient
+    from zoom_sdk import ZoomClient
 
     with ZoomClient() as client:
         users = client.users.list(page_size=10)

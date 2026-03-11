@@ -6,7 +6,7 @@ automation work.
 ## Basic shape
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     users = client.users.list(page_size=10)
@@ -26,7 +26,7 @@ Parameters are exposed in snake_case, derived directly from schema names:
 - `next_page_token` stays `next_page_token`
 - `includeInactive` becomes `include_inactive`
 
-`zoompy` intentionally does **not** invent generic parameter aliases like
+`zoom_sdk` intentionally does **not** invent generic parameter aliases like
 `id=`. The public SDK contract stays as close to the schema as possible.
 
 ## Typed return values
@@ -74,7 +74,7 @@ with ZoomClient() as client:
     )
 ```
 
-If a generated request model exists, `zoompy` validates the body against that
+If a generated request model exists, `zoom_sdk` validates the body against that
 model before sending it.
 
 ## Pagination helpers

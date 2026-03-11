@@ -1,7 +1,7 @@
 """Focused production-side tests for runtime schema registries.
 
 The broad contract suites prove the repository's schema-driven tests work, but
-they do not directly prove that the production `zoompy` runtime classes load
+they do not directly prove that the production `zoom_sdk` runtime classes load
 the same schema families correctly. These tests stay narrow on purpose:
 
 * one test proves `SchemaRegistry` indexes a master-account path
@@ -21,8 +21,8 @@ from typing import Any
 
 import pytest
 
-from zoompy import WebhookRegistry, ZoomClient
-from zoompy.schema import SchemaRegistry
+from zoom_sdk import WebhookRegistry, ZoomClient
+from zoom_sdk.schema import SchemaRegistry
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:

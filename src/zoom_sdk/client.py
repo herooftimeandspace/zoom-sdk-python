@@ -1,4 +1,4 @@
-"""Unified Zoom API client for the `zoompy` package.
+"""Unified Zoom API client for the `zoom_sdk` package.
 
 The low-level runtime core is still the generic `request()` method because that
 is where authentication, retries, logging, and schema validation belong.

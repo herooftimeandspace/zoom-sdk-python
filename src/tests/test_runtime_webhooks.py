@@ -26,7 +26,7 @@ from _openapi_contract import (
     load_openapi_spec,
     snake_case,
 )
-from zoompy import WebhookRegistry, ZoomClient
+from zoom_sdk import WebhookRegistry, ZoomClient
 
 WEBHOOK_ROOT = Path(__file__).resolve().parent / "webhooks"
 

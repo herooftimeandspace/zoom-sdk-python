@@ -30,9 +30,9 @@ For local docs preview:
 
 The repository treats bundled OpenAPI JSON as source code.
 
-- ordinary endpoint documents live under `src/zoompy/endpoints`
-- master-account documents live under `src/zoompy/master_accounts`
-- webhook documents live under `src/zoompy/webhooks`
+- ordinary endpoint documents live under `src/zoom_sdk/endpoints`
+- master-account documents live under `src/zoom_sdk/master_accounts`
+- webhook documents live under `src/zoom_sdk/webhooks`
 
 Do not edit generated JSON files by hand unless you are intentionally fixing a
 local sync problem. Update `scripts/schema_urls.json` and run:
@@ -64,7 +64,8 @@ tests in addition to keeping the broad contract suites green.
 
 ## SDK stability policy
 
-`zoompy` now has a public SDK surface on top of the lower-level request client.
+`zoom-sdk-python` now has a public SDK surface on top of the lower-level
+request client. The runtime import package remains `zoom_sdk`.
 When contributing, treat these SDK behaviors as user-facing API:
 
 - namespace layout such as `client.users` and `client.phone.users`

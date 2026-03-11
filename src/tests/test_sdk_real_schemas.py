@@ -2,7 +2,7 @@
 
 The focused SDK tests in `test_sdk.py` keep behavior isolated with a tiny
 temporary schema tree. This module complements them by sampling the actual
-bundled OpenAPI documents that ship with `zoompy`.
+bundled OpenAPI documents that ship with `zoom_sdk`.
 
 These tests are intentionally opinionated. Their job is to pin the public SDK
 surface that outside projects are expected to rely on, especially across the
@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from zoompy import ZoomClient, __version__
+from zoom_sdk import ZoomClient, __version__
 
 _GOLDEN_PUBLIC_SURFACE_PATH = (
     Path(__file__).parent / "golden" / "sdk_public_surface.json"
@@ -157,7 +157,7 @@ def client() -> Iterator[ZoomClient]:
     """Create one schema-only client per test and close it reliably.
 
     These tests never hit the network. They only inspect the SDK surface that
-    `zoompy` builds from packaged schemas, so an explicit access token is
+    `zoom_sdk` builds from packaged schemas, so an explicit access token is
     enough to bypass live OAuth.
     """
 

@@ -1,6 +1,6 @@
 """Dynamic SDK layer built on top of the generic `ZoomClient.request()` API.
 
-`zoompy` started life as a deliberately small transport client with one public
+`zoom_sdk` started life as a deliberately small transport client with one public
 request method. That core is still valuable because it keeps auth, retries,
 logging, and schema validation concentrated in one obvious place.
 

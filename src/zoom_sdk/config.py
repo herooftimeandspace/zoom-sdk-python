@@ -1,4 +1,4 @@
-"""Configuration helpers for the `zoompy` package.
+"""Configuration helpers for the `zoom_sdk` package.
 
 This module exists to keep environment loading and configuration assembly out of
 the HTTP client itself. That separation makes the client easier to test and
@@ -82,7 +82,7 @@ def load_dotenv(path: Path | None = None) -> None:
 
 
 class ZoomSettings(BaseModel):
-    """Normalized configuration values used by :class:`zoompy.client.ZoomClient`.
+    """Normalized configuration values used by :class:`zoom_sdk.client.ZoomClient`.
 
     Pydantic is used here for two reasons:
 

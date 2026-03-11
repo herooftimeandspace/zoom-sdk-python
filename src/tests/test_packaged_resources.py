@@ -26,7 +26,7 @@ def _iter_json_files(root: Any) -> list[Any]:
 def test_packaged_endpoint_resources_are_available() -> None:
     """Ensure endpoint schema files are discoverable as package resources."""
 
-    root = resources.files("zoompy") / "endpoints"
+    root = resources.files("zoom_sdk") / "endpoints"
     files = _iter_json_files(root)
     assert files
 
@@ -34,7 +34,7 @@ def test_packaged_endpoint_resources_are_available() -> None:
 def test_packaged_webhook_resources_are_available() -> None:
     """Ensure webhook schema files are discoverable as package resources."""
 
-    root = resources.files("zoompy") / "webhooks"
+    root = resources.files("zoom_sdk") / "webhooks"
     files = _iter_json_files(root)
     assert files
 
@@ -47,6 +47,6 @@ def test_packaged_master_account_resources_are_discoverable() -> None:
     the runtime schema loader has a stable location to inspect.
     """
 
-    root = resources.files("zoompy") / "master_accounts"
+    root = resources.files("zoom_sdk") / "master_accounts"
     children = list(root.iterdir())
     assert children is not None

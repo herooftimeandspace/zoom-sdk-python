@@ -21,7 +21,7 @@ from the repository requirements file instead:
 
 ## Required Zoom credentials
 
-`zoompy` uses Server-to-Server OAuth unless you provide an explicit bearer
+`zoom_sdk` uses Server-to-Server OAuth unless you provide an explicit bearer
 token.
 
 Required environment variables:
@@ -41,7 +41,7 @@ You can also provide these values directly to `ZoomClient(...)`.
 ## Minimal SDK example
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     me = client.users.get(user_id="me")
@@ -54,7 +54,7 @@ If you need exact control over method and path handling, the lower-level
 request API is still available:
 
 ```python
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 with ZoomClient() as client:
     payload = client.request(

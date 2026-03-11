@@ -1,7 +1,7 @@
 """Print the first ten Zoom users in a simple terminal table.
 
 This is a deliberately small production-smoke script for local validation.
-It exercises the public `zoompy` client, uses the generated SDK surface, and
+It exercises the public `zoom_sdk` client, uses the generated SDK surface, and
 prints a readable table without pulling in any third-party table-formatting
 dependencies.
 
@@ -23,9 +23,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from zoompy import ZoomClient, configure_logging
+from zoom_sdk import ZoomClient, configure_logging
 
-LOGGER = logging.getLogger("zoompy.scripts.list_users")
+LOGGER = logging.getLogger("zoom_sdk.scripts.list_users")
 
 
 def _string_value(value: object) -> str:

@@ -16,7 +16,7 @@ from typing import Any
 import httpx
 import pytest
 
-from zoompy import ZoomClient
+from zoom_sdk import ZoomClient
 
 
 class _NoOpSchemaRegistry:

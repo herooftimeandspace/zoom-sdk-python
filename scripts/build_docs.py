@@ -1,4 +1,4 @@
-"""Assemble and build the published documentation site for `zoompy`.
+"""Assemble and build the published documentation site for `zoom_sdk`.
 
 The repository already has strong canonical documentation sources:
 
@@ -35,23 +35,23 @@ ROOT_MARKDOWN_FILES = {
 }
 
 PDOC_MODULES = (
-    "zoompy",
-    "zoompy.client",
-    "zoompy.schema",
-    "zoompy.sdk",
-    "zoompy.auth",
-    "zoompy.config",
-    "zoompy.logging",
+    "zoom_sdk",
+    "zoom_sdk.client",
+    "zoom_sdk.schema",
+    "zoom_sdk.sdk",
+    "zoom_sdk.auth",
+    "zoom_sdk.config",
+    "zoom_sdk.logging",
 )
 
 API_WRAPPERS = (
-    ("zoompy", "zoompy.html", "zoompy.md"),
-    ("zoompy.client", "zoompy.client.html", "zoompy-client.md"),
-    ("zoompy.schema", "zoompy.schema.html", "zoompy-schema.md"),
-    ("zoompy.sdk", "zoompy.sdk.html", "zoompy-sdk.md"),
-    ("zoompy.auth", "zoompy.auth.html", "zoompy-auth.md"),
-    ("zoompy.config", "zoompy.config.html", "zoompy-config.md"),
-    ("zoompy.logging", "zoompy.logging.html", "zoompy-logging.md"),
+    ("zoom_sdk", "zoom_sdk.html", "zoom_sdk.md"),
+    ("zoom_sdk.client", "zoom_sdk.client.html", "zoom_sdk-client.md"),
+    ("zoom_sdk.schema", "zoom_sdk.schema.html", "zoom_sdk-schema.md"),
+    ("zoom_sdk.sdk", "zoom_sdk.sdk.html", "zoom_sdk-sdk.md"),
+    ("zoom_sdk.auth", "zoom_sdk.auth.html", "zoom_sdk-auth.md"),
+    ("zoom_sdk.config", "zoom_sdk.config.html", "zoom_sdk-config.md"),
+    ("zoom_sdk.logging", "zoom_sdk.logging.html", "zoom_sdk-logging.md"),
 )
 
 
@@ -114,10 +114,10 @@ def write_api_landing_page() -> None:
             "",
             "## Recommended starting points",
             "",
-            "- `zoompy` for top-level exports and package-level usage",
-            "- `zoompy.client` for `ZoomClient` request behavior",
-            "- `zoompy.sdk` for the dynamic SDK layer and generated method surface",
-            "- `zoompy.schema` for response and webhook validation internals",
+            "- `zoom_sdk` for top-level exports and package-level usage",
+            "- `zoom_sdk.client` for `ZoomClient` request behavior",
+            "- `zoom_sdk.sdk` for the dynamic SDK layer and generated method surface",
+            "- `zoom_sdk.schema` for response and webhook validation internals",
         ]
     )
 

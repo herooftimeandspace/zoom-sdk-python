@@ -8,17 +8,17 @@ docstring details straight from the code.
 
 ## Generated module reference
 
-- [zoompy](zoompy.md)
-- [zoompy / client](zoompy-client.md)
-- [zoompy / schema](zoompy-schema.md)
-- [zoompy / sdk](zoompy-sdk.md)
-- [zoompy / auth](zoompy-auth.md)
-- [zoompy / config](zoompy-config.md)
-- [zoompy / logging](zoompy-logging.md)
+- [zoom_sdk](zoom_sdk.md)
+- [zoom_sdk / client](zoom_sdk-client.md)
+- [zoom_sdk / schema](zoom_sdk-schema.md)
+- [zoom_sdk / sdk](zoom_sdk-sdk.md)
+- [zoom_sdk / auth](zoom_sdk-auth.md)
+- [zoom_sdk / config](zoom_sdk-config.md)
+- [zoom_sdk / logging](zoom_sdk-logging.md)
 
 ## Recommended starting points
 
-- `zoompy` for top-level exports and package-level usage
-- `zoompy.client` for `ZoomClient` request behavior
-- `zoompy.sdk` for the dynamic SDK layer and generated method surface
-- `zoompy.schema` for response and webhook validation internals
+- `zoom_sdk` for top-level exports and package-level usage
+- `zoom_sdk.client` for `ZoomClient` request behavior
+- `zoom_sdk.sdk` for the dynamic SDK layer and generated method surface
+- `zoom_sdk.schema` for response and webhook validation internals

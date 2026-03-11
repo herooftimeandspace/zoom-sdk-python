@@ -1,4 +1,4 @@
-"""Minimal live integration smoke tests for `zoompy`.
+"""Minimal live integration smoke tests for `zoom_sdk`.
 
 The contract suites cover most behavior offline with mocked HTTP. This file is
 deliberately small and exists to prove that live configuration can do three
@@ -21,8 +21,8 @@ from typing import Any
 import httpx
 import pytest
 
-from zoompy import ZoomClient
-from zoompy.config import load_dotenv
+from zoom_sdk import ZoomClient
+from zoom_sdk.config import load_dotenv
 
 REQUIRED_ENV_VARS = (
     "ZOOM_ACCOUNT_ID",

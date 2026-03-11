@@ -1,4 +1,4 @@
-"""OpenAPI document loading, indexing, and validation for `zoompy`.
+"""OpenAPI document loading, indexing, and validation for `zoom_sdk`.
 
 The production client validates every successful JSON response against bundled
 OpenAPI documents. This module owns that work so the HTTP client can stay
@@ -6,9 +6,9 @@ focused on transport concerns like retries, authentication, and logging.
 
 The repository now stores three schema families:
 
-* ordinary outbound API documents under `zoompy/endpoints`
-* master-account API documents under `zoompy/master_accounts`
-* inbound webhook documents under `zoompy/webhooks`
+* ordinary outbound API documents under `zoom_sdk/endpoints`
+* master-account API documents under `zoom_sdk/master_accounts`
+* inbound webhook documents under `zoom_sdk/webhooks`
 
 Those families are related, but not identical. Endpoint and master-account
 documents both describe path-based request/response APIs, while webhook
@@ -34,7 +34,7 @@ def _iter_json_files(root: Any) -> Iterable[Path]:
     """Recursively yield packaged JSON files from a traversable root.
 
     The schema package stores endpoint, master-account, and webhook documents
-    in parallel directory trees under `src/zoompy/`. The concrete resource root
+    in parallel directory trees under `src/zoom_sdk/`. The concrete resource root
     may be a normal filesystem path or an `importlib.resources` traversable, so
     this helper keeps the recursion logic in one place instead of repeating it
     in each registry class.
@@ -499,7 +499,7 @@ class PathOperationIndex:
     ) -> None:
         """Load and index bundled path-based operations."""
 
-        self._resource_root = resource_root or resources.files("zoompy")
+        self._resource_root = resource_root or resources.files("zoom_sdk")
         self._path_root_names = path_root_names
         self._operations_by_prefix: dict[str, list[SchemaOperation]] = {}
         self._all_operations: list[SchemaOperation] = []
@@ -727,7 +727,7 @@ class WebhookRegistry:
     ) -> None:
         """Load bundled webhook operations into an event lookup table."""
 
-        self._resource_root = resource_root or resources.files("zoompy")
+        self._resource_root = resource_root or resources.files("zoom_sdk")
         self._webhook_root_name = webhook_root_name
         self._tools = tools or OpenApiSchemaTools()
         self._validator = validator or SchemaValidator(self._tools)

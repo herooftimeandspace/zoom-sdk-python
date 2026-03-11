@@ -1,6 +1,7 @@
-# zoompy Documentation
+# zoom-sdk-python Documentation
 
-`zoompy` is a schema-driven Python SDK for the Zoom API. The documentation site
+`zoom-sdk-python` is a schema-driven Python SDK for the Zoom API. Import it as
+`zoom_sdk`. The documentation site
 is organized so you can approach it from whichever direction matches your work:
 
 - start with the guides if you are trying to learn how to use the SDK
@@ -9,7 +10,7 @@ is organized so you can approach it from whichever direction matches your work:
 - use the mirrored project docs when you need release notes, contribution
   guidance, or the security policy
 
-## What `zoompy` gives you
+## What `zoom_sdk` gives you
 
 - a scripting-friendly SDK such as `client.users.get(user_id="me")`
 - a validated low-level `request(...)` escape hatch

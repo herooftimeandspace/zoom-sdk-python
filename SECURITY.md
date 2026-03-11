@@ -2,7 +2,8 @@
 
 ## Supported use
 
-`zoompy` is intended to validate Zoom API responses and webhook payload shapes.
+`zoom-sdk-python` is intended to validate Zoom API responses and webhook payload
+shapes. The Python import package is `zoom_sdk`.
 It is not a complete security framework for Zoom integrations.
 
 In particular:

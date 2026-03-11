@@ -1,4 +1,4 @@
-"""Server-to-Server OAuth support for `zoompy`.
+"""Server-to-Server OAuth support for `zoom_sdk`.
 
 This module owns token acquisition and caching so the main client can focus on
 request execution instead of credential bookkeeping.

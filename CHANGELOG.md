@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `zoompy` should be documented in this file.
+All notable changes to `zoom-sdk-python` should be documented in this file.
 
 The project follows a keep-a-changelog style format with a lightweight
 semantic-versioning policy for the public SDK surface.
@@ -63,7 +63,7 @@ semantic-versioning policy for the public SDK surface.
 - SDK alias generation and pagination helpers were refined to make awkward Zoom
   endpoint families feel more intentional while preserving schema-derived
   behavior.
-- Structured logging now defaults the `zoompy` package logger to `INFO` while
+- Structured logging now defaults the `zoom_sdk` package logger to `INFO` while
   still leaving handler configuration to the consuming application.
 - The schema sync utility now routes progress and warning output through the
   standard logging system instead of `print(...)`.

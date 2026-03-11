@@ -5,11 +5,11 @@ you mostly use the higher-level SDK surface.
 
 ## Structured logging
 
-`zoompy` uses the standard library `logging` module only.
+`zoom_sdk` uses the standard library `logging` module only.
 
 Important behavior:
 
-- the `zoompy` logger defaults to `INFO`
+- the `zoom_sdk` logger defaults to `INFO`
 - the library does **not** decide where logs are written
 - applications remain responsible for attaching console, file, or other
   handlers
@@ -17,7 +17,7 @@ Important behavior:
 To enable the built-in JSON log formatter:
 
 ```python
-from zoompy import ZoomClient, configure_logging
+from zoom_sdk import ZoomClient, configure_logging
 
 configure_logging("INFO")
 

@@ -1,8 +1,8 @@
-site_name: zoompy
+site_name: zoom-sdk-python
 site_description: Schema-driven Python SDK and validated client for the Zoom API.
-site_url: https://herooftimeandspace.github.io/zoompy/
-repo_url: https://github.com/herooftimeandspace/zoompy
-repo_name: herooftimeandspace/zoompy
+site_url: https://herooftimeandspace.github.io/zoom-sdk-python/
+repo_url: https://github.com/herooftimeandspace/zoom-sdk-python
+repo_name: herooftimeandspace/zoom-sdk-python
 docs_dir: docs
 site_dir: site
 theme:
@@ -46,13 +46,13 @@ nav:
       - Logging and Runtime Behavior: guides/logging-and-runtime.md
   - API Reference:
       - Overview: api/index.md
-      - Package: api/zoompy.md
-      - Client: api/zoompy-client.md
-      - Schema: api/zoompy-schema.md
-      - SDK: api/zoompy-sdk.md
-      - Auth: api/zoompy-auth.md
-      - Config: api/zoompy-config.md
-      - Logging: api/zoompy-logging.md
+      - Package: api/zoom_sdk.md
+      - Client: api/zoom_sdk-client.md
+      - Schema: api/zoom_sdk-schema.md
+      - SDK: api/zoom_sdk-sdk.md
+      - Auth: api/zoom_sdk-auth.md
+      - Config: api/zoom_sdk-config.md
+      - Logging: api/zoom_sdk-logging.md
   - Project Docs:
       - README: generated/readme.md
       - Changelog: generated/changelog.md

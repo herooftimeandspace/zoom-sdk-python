@@ -1,8 +1,8 @@
-"""Structured logging helpers for the `zoompy` package.
+"""Structured logging helpers for the `zoom_sdk` package.
 
 The package logger defaults to the `INFO` level so applications can receive the
 normal request lifecycle immediately after attaching their own handlers.
-`zoompy` still does not choose an output destination on behalf of the caller:
+`zoom_sdk` still does not choose an output destination on behalf of the caller:
 applications remain responsible for attaching console, file, or other logging
 handlers.
 
@@ -70,7 +70,7 @@ def get_logger() -> logging.Logger:
     output should go.
     """
 
-    logger = logging.getLogger("zoompy")
+    logger = logging.getLogger("zoom_sdk")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
         logger.addHandler(logging.NullHandler())
@@ -78,13 +78,13 @@ def get_logger() -> logging.Logger:
 
 
 def configure_logging(level: str = "INFO") -> logging.Logger:
-    """Configure the `zoompy` logger to emit JSON logs to stderr.
+    """Configure the `zoom_sdk` logger to emit JSON logs to stderr.
 
     This helper is intentionally idempotent. If a JSON stream handler is
     already present, it will not add duplicates on repeated calls.
     """
 
-    logger = logging.getLogger("zoompy")
+    logger = logging.getLogger("zoom_sdk")
     logger.setLevel(level.upper())
     logger.propagate = False
 

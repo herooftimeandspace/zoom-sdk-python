@@ -14,11 +14,11 @@ The workflow is intentionally simple and deterministic:
 6. Derive optional master-account URLs and store them in a separate tree.
 7. Mirror all canonical trees into the test directory structure.
 
-`src/zoompy/endpoints` is the canonical source of truth for ordinary runtime
+`src/zoom_sdk/endpoints` is the canonical source of truth for ordinary runtime
 API response validation. Master-account documents are stored separately under
-`src/zoompy/master_accounts` so they can mirror the same product-family layout
+`src/zoom_sdk/master_accounts` so they can mirror the same product-family layout
 without colliding with ordinary endpoint filenames. Webhook documents are
-stored separately under `src/zoompy/webhooks` because they use the OpenAPI
+stored separately under `src/zoom_sdk/webhooks` because they use the OpenAPI
 `webhooks` section rather than `paths`, and therefore should not be mixed into
 the request/response schema registry used by the client.
 """
@@ -36,16 +36,19 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-DEFAULT_CANONICAL_ROOT = Path("src/zoompy/endpoints")
+DEFAULT_CANONICAL_ROOT = Path("src/zoom_sdk/endpoints")
 DEFAULT_TEST_ROOT = Path("src/tests/endpoints")
-DEFAULT_MASTER_ACCOUNT_ROOT = Path("src/zoompy/master_accounts")
+DEFAULT_MASTER_ACCOUNT_ROOT = Path("src/zoom_sdk/master_accounts")
 DEFAULT_TEST_MASTER_ACCOUNT_ROOT = Path("src/tests/master_accounts")
-DEFAULT_WEBHOOK_ROOT = Path("src/zoompy/webhooks")
+DEFAULT_WEBHOOK_ROOT = Path("src/zoom_sdk/webhooks")
 DEFAULT_TEST_WEBHOOK_ROOT = Path("src/tests/webhooks")
-DEFAULT_CACHE_ROOT = Path(".cache/zoompy-schema-sync")
+DEFAULT_CACHE_ROOT = Path(".cache/zoom_sdk-schema-sync")
 DEFAULT_MANIFEST_PATH = Path("scripts/schema_urls.json")
-USER_AGENT = "zoompy-schema-sync/0.1 (+https://github.com/herooftimeandspace/zoompy)"
-LOGGER = logging.getLogger("zoompy.scripts.sync_schemas")
+USER_AGENT = (
+    "zoom_sdk-schema-sync/0.1 "
+    "(+https://github.com/herooftimeandspace/zoom-sdk-python)"
+)
+LOGGER = logging.getLogger("zoom_sdk.scripts.sync_schemas")
 
 
 @dataclass(frozen=True)

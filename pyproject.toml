@@ -3,7 +3,7 @@ requires = ["hatchling>=1.24.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "zoompy"
+name = "zoom-sdk-python"
 version = "1.0.1"
 description = "A production-ready unified Zoom API client with schema validation."
 readme = "README.md"
@@ -28,13 +28,13 @@ dev = [
 
 [tool.hatch.build]
 include = [
-  "src/zoompy/**",
+  "src/zoom_sdk/**",
   "README.md",
   "LICENSE",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zoompy"]
+packages = ["src/zoom_sdk"]
 
 [tool.pytest.ini_options]
 testpaths = ["src/tests"]
