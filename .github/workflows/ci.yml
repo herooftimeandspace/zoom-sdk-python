@@ -47,7 +47,10 @@ jobs:
       - name: Write coverage badge payload
         if: github.event_name == 'push'
         run: |
-          python scripts/write_coverage_badge.py --input coverage.xml --output badges/coverage.json
+          python scripts/write_coverage_badge.py \
+            --input coverage.xml \
+            --output badges/coverage.json \
+            --label "coverage (${{ github.ref_name }})"
 
       - name: Commit updated coverage badge
         if: github.event_name == 'push'

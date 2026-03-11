@@ -3,9 +3,9 @@
 [![Build (main)](https://img.shields.io/github/actions/workflow/status/herooftimeandspace/zoom-sdk-python/ci.yml?branch=main&label=build%20(main))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Amain)
 [![Build (staging)](https://img.shields.io/github/actions/workflow/status/herooftimeandspace/zoom-sdk-python/ci.yml?branch=staging&label=build%20(staging))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Astaging)
 [![Build (dev)](https://img.shields.io/github/actions/workflow/status/herooftimeandspace/zoom-sdk-python/ci.yml?branch=dev&label=build%20(dev))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Adev)
-[![Coverage (main)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/main/badges/coverage.json)](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Amain)
-[![Coverage (staging)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/staging/badges/coverage.json)](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Astaging)
-[![Coverage (dev)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/dev/badges/coverage.json)](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Adev)
+[![Coverage (main)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/main/badges/coverage.json&label=coverage%20(main))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Amain)
+[![Coverage (staging)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/staging/badges/coverage.json&label=coverage%20(staging))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Astaging)
+[![Coverage (dev)](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/herooftimeandspace/zoom-sdk-python/dev/badges/coverage.json&label=coverage%20(dev))](https://github.com/herooftimeandspace/zoom-sdk-python/actions/workflows/ci.yml?query=branch%3Adev)
 
 `zoom-sdk-python` is a production-ready Python SDK for the Zoom REST API. The
 published package name is `zoom-sdk-python`, and the Python import package is
