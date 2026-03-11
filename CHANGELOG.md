@@ -7,6 +7,8 @@ semantic-versioning policy for the public SDK surface.
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 - Dynamic schema-driven SDK namespaces on `ZoomClient`, such as
   `client.users.get(...)` and `client.phone.users.get(...)`.
@@ -28,6 +30,11 @@ semantic-versioning policy for the public SDK surface.
   that exercises the generated SDK against a live account.
 - Static API documentation generation with `pdoc`.
 - GitHub Pages publishing for the generated API reference.
+- Schema-derived SDK signatures and richer generated method docstrings so
+  editors, `help(...)`, and published API docs expose expected parameter types,
+  request-body hints, and return-model guidance.
+- Focused SDK tests that reject malformed typed response payloads before they
+  can be exposed as model objects.
 
 ### Changed
 - SDK methods now use schema-derived snake_case parameter names instead of
@@ -48,6 +55,8 @@ semantic-versioning policy for the public SDK surface.
   and tests on every push and pull request.
 - The published documentation now reflects the dynamic SDK as the primary
   scripting interface rather than the older low-level typed-model hooks.
+- The SDK documentation now emphasizes how to learn valid request shapes from
+  signatures, generated docstrings, `request_model`, and `response_model`.
 
 ### Fixed
 - Request base URL selection now respects schema-declared server URLs for
@@ -57,6 +66,11 @@ semantic-versioning policy for the public SDK surface.
   optional empty-string enum fields, and composed schemas.
 - The configured `mypy` quality gate is now green for the tracked source tree
   and shared OpenAPI contract helper.
+
+### Removed
+- Redundant `SdkMethod.typed(...)` alias. Normal SDK calls already return typed
+  models by default, so the extra wrapper is no longer part of the public SDK
+  surface.
 
 ## [0.1.0]
 

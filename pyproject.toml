@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zoompy"
-version = "0.1.0"
+version = "1.0.0"
 description = "A production-ready unified Zoom API client with schema validation."
 readme = "README.md"
 requires-python = ">=3.14"
