@@ -13,6 +13,7 @@ the SDK behavior checks to the full Zoom schema corpus.
 
 from __future__ import annotations
 
+import inspect
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -59,6 +60,7 @@ def _build_sdk_client(tmp_path: Path) -> ZoomClient:
                                 "name": "page_size",
                                 "in": "query",
                                 "required": False,
+                                "description": "Maximum number of users to return.",
                                 "schema": {"type": "integer"},
                             }
                         ],
@@ -136,6 +138,7 @@ def _build_sdk_client(tmp_path: Path) -> ZoomClient:
                                 "name": "userId",
                                 "in": "path",
                                 "required": True,
+                                "description": "The Zoom user identifier.",
                                 "schema": {"type": "string"},
                             }
                         ],
@@ -200,12 +203,14 @@ def _build_sdk_client(tmp_path: Path) -> ZoomClient:
                                 "name": "userId",
                                 "in": "path",
                                 "required": True,
+                                "description": "The Zoom Phone user identifier.",
                                 "schema": {"type": "string"},
                             },
                             {
                                 "name": "includeInactive",
                                 "in": "query",
                                 "required": False,
+                                "description": "Whether inactive users should be included.",
                                 "schema": {"type": "boolean"},
                             },
                         ],
@@ -236,6 +241,7 @@ def _build_sdk_client(tmp_path: Path) -> ZoomClient:
                                 "name": "userId",
                                 "in": "path",
                                 "required": True,
+                                "description": "The Zoom Phone user identifier.",
                                 "schema": {"type": "string"},
                             }
                         ],
@@ -486,6 +492,55 @@ def test_sdk_exposes_typed_request_and_response_models(tmp_path: Path) -> None:
     assert issubclass(response_model, BaseModel)
 
 
+def test_sdk_methods_expose_schema_derived_signatures(tmp_path: Path) -> None:
+    """Expose useful parameter and return types through `inspect.signature`.
+
+    A new user should be able to hover a method in an editor and see enough
+    guidance to build a valid request without reading the implementation first.
+    """
+
+    client = _build_sdk_client(tmp_path)
+    try:
+        get_signature = str(inspect.signature(client.phone.users.get))
+        create_signature = str(inspect.signature(client.users.create))
+        phone_response_model = client.phone.users.get.response_model
+    finally:
+        client.close()
+
+    assert get_signature.startswith(
+        "(*, user_id: str, include_inactive: bool | None = None, "
+        "headers: collections.abc.Mapping[str, str] | None = None, "
+        "timeout: float | None = None) -> "
+    )
+    assert get_signature.endswith(f"{phone_response_model.__name__} | None")
+    assert "body:" in create_signature
+    assert "**body_fields: Any" in create_signature
+
+
+def test_sdk_docstrings_include_types_and_request_guidance(tmp_path: Path) -> None:
+    """Document parameter types and body hints directly on generated methods."""
+
+    client = _build_sdk_client(tmp_path)
+    try:
+        get_docstring = client.phone.users.get.__doc__
+        create_docstring = client.users.create.__doc__
+    finally:
+        client.close()
+
+    assert get_docstring is not None
+    assert "Python signature:" in get_docstring
+    assert "user_id: str" in get_docstring
+    assert "include_inactive: bool | None" in get_docstring
+    assert "The Zoom Phone user identifier." in get_docstring
+
+    assert create_docstring is not None
+    assert "Request body:" in create_docstring
+    assert "top-level body fields:" in create_docstring
+    assert "email: str (required)" in create_docstring
+    assert "first_name: str | None (optional)" in create_docstring
+    assert "Tooling hints:" in create_docstring
+
+
 def test_sdk_calls_return_model_instances_with_pythonic_fields_by_default(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -520,6 +575,44 @@ def test_sdk_calls_return_model_instances_with_pythonic_fields_by_default(
     typed_result = cast(Any, result)
     assert typed_result.user_id == "me"
     assert typed_result.display_name == "Ada Lovelace"
+
+
+def test_sdk_rejects_invalid_typed_response_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reject malformed response payloads before exposing typed SDK results.
+
+    The lower-level request layer already validates live responses against the
+    OpenAPI documents. This test protects the SDK layer itself: if a mocked or
+    otherwise malformed payload still reaches the typed method wrapper, the
+    generated response model should refuse to coerce it into a seemingly valid
+    object.
+    """
+
+    client = _build_sdk_client(tmp_path)
+
+    def fake_request(
+        method: str,
+        path: str,
+        *,
+        path_params: Any = None,
+        params: Any = None,
+        json: Any = None,
+        headers: Any = None,
+        timeout: Any = None,
+    ) -> dict[str, Any]:
+        return {
+            "displayName": "Ada Lovelace",
+        }
+
+    monkeypatch.setattr(client, "request", fake_request)
+
+    try:
+        with pytest.raises(ValidationError, match="userId"):
+            client.users.get(user_id="me")
+    finally:
+        client.close()
 
 
 def test_sdk_validates_request_bodies_before_sending_by_default(
