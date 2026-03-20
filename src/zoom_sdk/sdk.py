@@ -517,9 +517,16 @@ class SdkMethod:
             )
 
         if explicit_path_params is None:
-            path_params = self._consume_path_parameters(remaining)
+            path_params = self._consume_path_parameters(
+                remaining,
+                timeout=timeout,
+            )
         else:
             path_params = dict(explicit_path_params)
+        path_params = self._populate_pbx_account_id_path_param(
+            path_params,
+            timeout=timeout,
+        )
 
         params: dict[str, Any] | None = None
 
@@ -798,6 +805,8 @@ class SdkMethod:
     def _consume_path_parameters(
         self,
         remaining: dict[str, Any],
+        *,
+        timeout: float | None = None,
     ) -> dict[str, Any] | None:
         """Extract required path parameters from the pending kwargs.
 
@@ -823,6 +832,14 @@ class SdkMethod:
                 continue
 
             if parameter.required:
+                if (
+                    parameter.original_name == "accountId" and
+                    self._operation.path.startswith("/api/v2/pbx/account/{accountId}/")
+                ):
+                    collected[parameter.original_name] = (
+                        self._client._resolve_pbx_account_id(timeout=timeout)
+                    )
+                    continue
                 raise TypeError(
                     f"Missing required path parameter "
                     f"'{parameter.python_name}' for SDK method "
@@ -830,6 +847,24 @@ class SdkMethod:
                 )
 
         return collected or None
+
+    def _populate_pbx_account_id_path_param(
+        self,
+        path_params: dict[str, Any] | None,
+        *,
+        timeout: float | None,
+    ) -> dict[str, Any] | None:
+        """Inject PBX account ids when account-scoped paths omit `{accountId}`."""
+
+        if not self._operation.path.startswith("/api/v2/pbx/account/{accountId}/"):
+            return path_params
+
+        populated = dict(path_params or {})
+        if "accountId" in populated:
+            return populated
+
+        populated["accountId"] = self._client._resolve_pbx_account_id(timeout=timeout)
+        return populated
 
     def _split_query_and_body_kwargs(
         self,
@@ -1180,14 +1215,17 @@ class ZoomSdk:
         """Convert one raw indexed operation into SDK metadata."""
 
         path_parameters, query_parameters = _extract_parameters(operation)
-        namespace = _namespace_from_path(operation.template_path)
+        namespace = operation.sdk_namespace or _namespace_from_path(
+            operation.template_path
+        )
+        primary_alias = operation.sdk_alias or _heuristic_alias(
+            method=operation.method,
+            path=operation.template_path,
+        )
         return SdkOperation(
             namespace=namespace,
             operation_name=_identifier(operation.operation_id),
-            alias_name=_heuristic_alias(
-                method=operation.method,
-                path=operation.template_path,
-            ),
+            alias_name=primary_alias,
             http_method=operation.method,
             path=operation.template_path,
             path_parameters=path_parameters,
@@ -1201,10 +1239,7 @@ class ZoomSdk:
             semantic_aliases=_semantic_aliases(
                 namespace=namespace,
                 operation_id=operation.operation_id,
-                primary_alias=_heuristic_alias(
-                    method=operation.method,
-                    path=operation.template_path,
-                ),
+                primary_alias=primary_alias,
             ),
         )
 
