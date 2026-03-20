@@ -99,6 +99,14 @@ class ZoomClient:
             oauth_url=oauth_url,
             token_skew_seconds=token_skew_seconds,
         )
+        if max_retries < 0:
+            raise ValueError("max_retries must be greater than or equal to 0.")
+        if backoff_base_seconds <= 0:
+            raise ValueError("backoff_base_seconds must be greater than 0.")
+        if backoff_max_seconds <= 0:
+            raise ValueError("backoff_max_seconds must be greater than 0.")
+        if timeout <= 0:
+            raise ValueError("timeout must be greater than 0.")
 
         self._base_url = settings.base_url.rstrip("/")
         self._default_timeout = timeout
@@ -403,15 +411,13 @@ class ZoomClient:
         """Create the final request headers, including Authorization."""
 
         access_token = self._token_manager.get_access_token(timeout=timeout)
-        merged_headers = httpx.Headers(
-            {
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/json",
-            }
-        )
+        merged_headers = httpx.Headers({"Accept": "application/json"})
         if headers:
             for key, value in headers.items():
+                if key.lower() == "authorization":
+                    continue
                 merged_headers[key] = value
+        merged_headers["Authorization"] = f"Bearer {access_token}"
         return dict(merged_headers)
 
     def _parse_and_validate_response(

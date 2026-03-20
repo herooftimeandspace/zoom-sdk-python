@@ -47,3 +47,37 @@ def test_strip_optional_quotes_leaves_unquoted_values_unchanged() -> None:
     """Return bare values exactly as written when there is nothing to strip."""
 
     assert _strip_optional_quotes("plain-value") == "plain-value"
+
+
+def test_zoom_settings_rejects_insecure_or_malformed_urls() -> None:
+    """Reject URL forms that are unsafe for outbound credentialed requests."""
+
+    with pytest.raises(ValueError, match="base_url must use https"):
+        ZoomSettings(base_url="http://api.zoom.us/v2")
+
+    with pytest.raises(ValueError, match="oauth_url must not include embedded credentials"):
+        ZoomSettings(oauth_url="https://user:pass@zoom.us")
+
+    with pytest.raises(ValueError, match="base_url must not include a query string"):
+        ZoomSettings(base_url="https://api.zoom.us/v2?debug=true")
+
+    with pytest.raises(ValueError, match="oauth_url must not include a fragment"):
+        ZoomSettings(oauth_url="https://zoom.us#frag")
+
+
+def test_zoom_settings_rejects_negative_token_skew() -> None:
+    """Disallow skew values that would make token expiry accounting ambiguous."""
+
+    with pytest.raises(ValueError, match="token_skew_seconds must be greater than or equal to 0"):
+        ZoomSettings(token_skew_seconds=-1)
+
+
+def test_zoom_settings_rejects_non_integer_env_token_skew(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail early when numeric environment settings are malformed."""
+
+    monkeypatch.setenv("ZOOM_TOKEN_SKEW_SECONDS", "soon")
+
+    with pytest.raises(ValueError, match="ZOOM_TOKEN_SKEW_SECONDS must be an integer"):
+        ZoomSettings.from_environment(load_local_env=False)

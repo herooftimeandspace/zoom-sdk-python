@@ -18,8 +18,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 def _strip_optional_quotes(value: str) -> str:
@@ -81,6 +82,25 @@ def load_dotenv(path: Path | None = None) -> None:
         os.environ[env_key] = _strip_optional_quotes(raw_value.strip())
 
 
+def _validate_https_url(value: str, *, field_name: str) -> str:
+    """Validate one configured base URL used for outbound requests."""
+
+    parsed = urlparse(value)
+    if parsed.scheme.lower() != "https":
+        raise ValueError(f"{field_name} must use https.")
+    if not parsed.netloc:
+        raise ValueError(f"{field_name} must include a hostname.")
+    if parsed.username or parsed.password:
+        raise ValueError(f"{field_name} must not include embedded credentials.")
+    if parsed.query:
+        raise ValueError(f"{field_name} must not include a query string.")
+    if parsed.fragment:
+        raise ValueError(f"{field_name} must not include a fragment.")
+    if parsed.params:
+        raise ValueError(f"{field_name} must not include path parameters.")
+    return value.rstrip("/")
+
+
 class ZoomSettings(BaseModel):
     """Normalized configuration values used by :class:`zoom_sdk.client.ZoomClient`.
 
@@ -100,6 +120,23 @@ class ZoomSettings(BaseModel):
     oauth_url: str = Field(default="https://zoom.us")
     token_skew_seconds: int = Field(default=60)
 
+    @field_validator("base_url")
+    @classmethod
+    def validate_base_url(cls, value: str) -> str:
+        return _validate_https_url(value, field_name="base_url")
+
+    @field_validator("oauth_url")
+    @classmethod
+    def validate_oauth_url(cls, value: str) -> str:
+        return _validate_https_url(value, field_name="oauth_url")
+
+    @field_validator("token_skew_seconds")
+    @classmethod
+    def validate_token_skew_seconds(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("token_skew_seconds must be greater than or equal to 0.")
+        return value
+
     @classmethod
     def from_environment(cls, *, load_local_env: bool = True) -> ZoomSettings:
         """Build settings from process environment variables.
@@ -115,13 +152,21 @@ class ZoomSettings(BaseModel):
         if load_local_env:
             load_dotenv()
 
+        raw_token_skew = os.getenv("ZOOM_TOKEN_SKEW_SECONDS", "60")
+        try:
+            token_skew_seconds = int(raw_token_skew)
+        except ValueError as exc:
+            raise ValueError(
+                "ZOOM_TOKEN_SKEW_SECONDS must be an integer."
+            ) from exc
+
         return cls(
             account_id=os.getenv("ZOOM_ACCOUNT_ID"),
             client_id=os.getenv("ZOOM_CLIENT_ID"),
             client_secret=os.getenv("ZOOM_CLIENT_SECRET"),
             base_url=os.getenv("ZOOM_BASE_URL", "https://api.zoom.us/v2"),
             oauth_url=os.getenv("ZOOM_OAUTH_URL", "https://zoom.us"),
-            token_skew_seconds=int(os.getenv("ZOOM_TOKEN_SKEW_SECONDS", "60")),
+            token_skew_seconds=token_skew_seconds,
         )
 
     def merged_with(self, **overrides: Any) -> ZoomSettings:
