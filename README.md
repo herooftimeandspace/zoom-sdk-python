@@ -696,16 +696,28 @@ source .venv/bin/activate
 ./.venv/bin/python -m pytest -m "not integration"
 ```
 
-### Run integration smoke test
+### Run read-only integration suite
 
-The integration suite is intentionally minimal. It exists to prove that live
-credentials can successfully acquire an OAuth token.
+The integration suite runs a curated matrix of live read-only `GET` requests
+across multiple Zoom API families.
 
 ```bash
 ./.venv/bin/python -m pytest -m integration
 ```
 
-If the required Zoom credentials are missing, the integration test is skipped.
+During each run, the suite writes a markdown artifact to:
+
+`.pytest_cache/integration-read-only/read-only-integration-report.md`
+
+The artifact logs full response payloads for each call and includes a dedicated
+`4xx` section plus a `schema ambiguities` section. For now, observed `4xx`
+responses are documented but do not fail the integration suite.
+
+One endpoint, `/users/{userId}/settings`, currently runs through a targeted raw
+fallback path and is explicitly reported as schema-ambiguous due to a bundled
+OpenAPI `oneOf` overlap that can reject valid live responses.
+
+If required credentials are missing, integration tests are skipped.
 
 ## Docker Usage
 
@@ -797,8 +809,10 @@ This repository uses multiple layers of testing:
    bundled OpenAPI schemas.
 2. client integration fixtures in `src/tests/conftest.py`
    These connect the contract tests to the real production client.
-3. integration smoke test under `src/tests/integration`
-   This verifies real token acquisition when credentials are available.
+3. read-only live integration suite under `src/tests/integration`
+   This verifies real OAuth bootstrap and executes a curated endpoint matrix
+   while documenting all responses, any `4xx` outcomes, and known schema
+   ambiguities.
 
 To refresh schemas from the URLs listed in `scripts/schema_urls.json` and then
 mirror the canonical tree into the test tree, run:
@@ -829,5 +843,6 @@ master-account, and webhook trees, run:
 ./.venv/bin/python scripts/sync_schemas.py --mirror-only
 ```
 
-The contract tests are the main source of behavioral confidence. The
-integration smoke test exists to confirm that the live OAuth path still works.
+The contract tests are the main source of behavioral confidence. The read-only
+integration suite complements them by validating live request paths and
+capturing response artifacts from real environments.
