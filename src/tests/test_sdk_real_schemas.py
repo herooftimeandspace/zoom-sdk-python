@@ -44,6 +44,17 @@ _TOP_LEVEL_NAMESPACE_CHECKS = (
     "whiteboard.projects.list",
     "meetings.update_meeting",
     "chat.channels.get_account",
+    "pbx.devices.get",
+    "pbx.devices.update",
+    "pbx.devices.list_extensions",
+    "pbx.devices.list_manufacturers",
+    "pbx.devices.list_models",
+    "pbx.devices.list_service_endpoints",
+    "pbx.account.get_current",
+    "pbx.account.get_user_telemetry",
+    "pbx.config.get_enable_xss_filter",
+    "pbx.web.get_menu",
+    "pbx.web.get_user_info",
 )
 
 _HELPER_METHOD_CHECKS = (
@@ -81,6 +92,17 @@ _STABLE_OPERATION_IDS = {
     "whiteboard.projects.list": "Listallprojects",
     "whiteboard.projects.get": "Getaproject",
     "whiteboard.projects.create": "Createproject",
+    "pbx.devices.get": "getPbxDevice",
+    "pbx.devices.update": "updatePbxDevice",
+    "pbx.devices.list_extensions": "listPbxDeviceExtensions",
+    "pbx.devices.list_manufacturers": "listPbxPhoneManufacturers",
+    "pbx.devices.list_models": "listPbxPhoneModels",
+    "pbx.devices.list_service_endpoints": "listPbxServiceEndpoints",
+    "pbx.account.get_current": "getPbxCurrentAccount",
+    "pbx.account.get_user_telemetry": "getPbxUserTelemetry",
+    "pbx.config.get_enable_xss_filter": "getPbxEnableXssFilter",
+    "pbx.web.get_menu": "getPbxWebMenu",
+    "pbx.web.get_user_info": "getPbxWebUserInfo",
 }
 
 _ALIAS_EQUIVALENTS = {
@@ -105,6 +127,17 @@ _PREFERRED_ALIAS_PRESENCE = {
     "rooms": ("add_room", "delete_room", "get_profile", "list_rooms", "update_profile"),
     "whiteboard": ("get_whiteboard", "delete_whiteboard", "update_metadata"),
     "whiteboard.projects": ("get", "list", "create"),
+    "pbx.devices": (
+        "get",
+        "update",
+        "list_extensions",
+        "list_manufacturers",
+        "list_models",
+        "list_service_endpoints",
+    ),
+    "pbx.account": ("get_current", "get_user_telemetry"),
+    "pbx.config": ("get_enable_xss_filter",),
+    "pbx.web": ("get_menu", "get_user_info"),
 }
 
 _TYPED_MODEL_EXPECTATIONS = {
@@ -118,6 +151,17 @@ _TYPED_MODEL_EXPECTATIONS = {
     "whiteboard.get_whiteboard": {"response": True, "request": False},
     "whiteboard.projects.get": {"response": True, "request": False},
     "whiteboard.projects.create": {"response": True, "request": True},
+    "pbx.devices.get": {"response": True, "request": False},
+    "pbx.devices.update": {"response": True, "request": True},
+    "pbx.devices.list_extensions": {"response": True, "request": False},
+    "pbx.devices.list_manufacturers": {"response": True, "request": False},
+    "pbx.devices.list_models": {"response": True, "request": False},
+    "pbx.devices.list_service_endpoints": {"response": True, "request": False},
+    "pbx.account.get_current": {"response": True, "request": False},
+    "pbx.account.get_user_telemetry": {"response": True, "request": False},
+    "pbx.config.get_enable_xss_filter": {"response": True, "request": False},
+    "pbx.web.get_menu": {"response": True, "request": False},
+    "pbx.web.get_user_info": {"response": True, "request": False},
 }
 
 _SCHEMA_PARAMETER_NAMES = {
@@ -148,6 +192,26 @@ _SCHEMA_PARAMETER_NAMES = {
     "whiteboard.projects.get": {
         "path": ["project_id"],
         "query": [],
+    },
+    "pbx.devices.get": {
+        "path": ["account_id", "device_id"],
+        "query": [],
+    },
+    "pbx.devices.update": {
+        "path": ["account_id", "device_id"],
+        "query": [],
+    },
+    "pbx.devices.list_extensions": {
+        "path": ["account_id"],
+        "query": ["level"],
+    },
+    "pbx.devices.list_models": {
+        "path": ["manufacturer_id"],
+        "query": [],
+    },
+    "pbx.devices.list_service_endpoints": {
+        "path": ["account_id"],
+        "query": ["keyword", "page_size", "page_number"],
     },
 }
 

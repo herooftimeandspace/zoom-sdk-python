@@ -50,3 +50,11 @@ def test_packaged_master_account_resources_are_discoverable() -> None:
     root = resources.files("zoom_sdk") / "master_accounts"
     children = list(root.iterdir())
     assert children is not None
+
+
+def test_packaged_sideloaded_resources_are_available() -> None:
+    """Ensure sideloaded schema files are discoverable as package resources."""
+
+    root = resources.files("zoom_sdk") / "sideloaded"
+    files = _iter_json_files(root)
+    assert files
