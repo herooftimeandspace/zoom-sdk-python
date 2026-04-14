@@ -418,14 +418,24 @@ class ZoomClient:
         """Create the final request headers, including Authorization."""
 
         access_token = self._token_manager.get_access_token(timeout=timeout)
-        merged_headers = httpx.Headers({"Accept": "application/json"})
+        merged_headers: dict[str, str] = {"Accept": "application/json"}
         if headers:
             for key, value in headers.items():
                 if key.lower() == "authorization":
                     continue
+                existing_key = next(
+                    (
+                        existing_name
+                        for existing_name in merged_headers
+                        if existing_name.lower() == key.lower()
+                    ),
+                    None,
+                )
+                if existing_key is not None and existing_key != key:
+                    merged_headers.pop(existing_key)
                 merged_headers[key] = value
         merged_headers["Authorization"] = f"Bearer {access_token}"
-        return dict(merged_headers)
+        return merged_headers
 
     def _parse_and_validate_response(
         self,
