@@ -118,6 +118,7 @@ class ZoomClient:
         self._webhooks = webhook_registry or WebhookRegistry()
         self._http = http_client or httpx.Client()
         self._owns_http_client = http_client is None
+        self._default_account_id = settings.account_id
         self._sdk: ZoomSdk | None = None
         self._token_manager = OAuthTokenManager(
             http_client=self._http,
@@ -175,6 +176,12 @@ class ZoomClient:
         """Expose token acquisition for integration tests and advanced callers."""
 
         return self._token_manager.get_access_token(timeout=timeout)
+
+    @property
+    def default_account_id(self) -> str | None:
+        """Return the merged client account id used for account-scoped calls."""
+
+        return self._default_account_id
 
     @property
     def sdk(self) -> ZoomSdk:
