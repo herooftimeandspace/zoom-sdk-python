@@ -831,6 +831,11 @@ class SdkMethod:
                 )
                 continue
 
+            default_value = self._default_path_parameter_value(parameter)
+            if default_value is not _MISSING:
+                collected[parameter.original_name] = default_value
+                continue
+
             if parameter.required:
                 if (
                     parameter.original_name == "accountId" and
@@ -847,6 +852,19 @@ class SdkMethod:
                 )
 
         return collected or None
+
+    def _default_path_parameter_value(self, parameter: SdkParameter) -> Any:
+        """Return a client-level fallback for supported omitted path params."""
+
+        if not parameter.required:
+            return _MISSING
+        if parameter.original_name != "accountId" and parameter.python_name != "account_id":
+            return _MISSING
+
+        default_account_id = self._client.default_account_id
+        if default_account_id is None:
+            return _MISSING
+        return default_account_id
 
     def _populate_pbx_account_id_path_param(
         self,

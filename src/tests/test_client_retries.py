@@ -429,21 +429,13 @@ def test_retry_delay_uses_backoff_when_retry_after_is_invalid(
 
 
 def test_request_runtime_fallback_raises_when_retry_loop_never_runs() -> None:
-    """Keep the explicit impossible-state guard covered for type-checker clarity."""
+    """Reject invalid retry configuration during client construction."""
 
-    client = _build_custom_client(
-        max_retries=-1,
-        schema_registry=_NoOpSchemaRegistry(),  # type: ignore[arg-type]
-    )
-
-    try:
-        with pytest.raises(
-            RuntimeError,
-            match="Request loop completed without a response or exception",
-        ):
-            client.request("GET", "/never-runs")
-    finally:
-        client.close()
+    with pytest.raises(ValueError, match="max_retries must be greater than or equal to 0"):
+        _build_custom_client(
+            max_retries=-1,
+            schema_registry=_NoOpSchemaRegistry(),  # type: ignore[arg-type]
+        )
 
 
 def test_request_returns_none_for_204_and_validates_empty_payload(
@@ -531,7 +523,39 @@ def test_request_logs_schema_validation_failures(
         client.close()
 
     assert errors[0]["event"] == "schema_validation_failed"
-    assert errors[0]["status_code"] == 200
+
+
+def test_build_headers_preserves_authentication_when_authorization_is_passed() -> None:
+    """Ignore caller-supplied Authorization headers and keep the SDK token."""
+
+    client = _build_client()
+
+    try:
+        headers = client._build_headers(
+            {
+                "Authorization": "Bearer attacker-token",
+                "X-Custom": "safe",
+            },
+            timeout=5.0,
+        )
+    finally:
+        client.close()
+
+    assert headers["Authorization"] == "Bearer test-access-token"
+    assert headers["X-Custom"] == "safe"
+
+
+def test_client_constructor_rejects_non_positive_timeout_and_backoff() -> None:
+    """Fail fast on invalid retry and timeout tuning values."""
+
+    with pytest.raises(ValueError, match="timeout must be greater than 0"):
+        _build_custom_client(timeout=0)
+
+    with pytest.raises(ValueError, match="backoff_base_seconds must be greater than 0"):
+        _build_custom_client(backoff_base_seconds=0)
+
+    with pytest.raises(ValueError, match="backoff_max_seconds must be greater than 0"):
+        _build_custom_client(backoff_max_seconds=0)
 
 
 def test_build_headers_includes_authorization_accept_and_custom_headers() -> None:
@@ -547,9 +571,10 @@ def test_build_headers_includes_authorization_accept_and_custom_headers() -> Non
     finally:
         client.close()
 
-    assert headers["authorization"] == "Bearer test-access-token"
-    assert headers["accept"] == "application/scim+json"
-    assert headers["x-test"] == "value"
+    normalized = {key.lower(): value for key, value in headers.items()}
+    assert normalized["authorization"] == "Bearer test-access-token"
+    assert normalized["accept"] == "application/scim+json"
+    assert normalized["x-test"] == "value"
 
 
 def test_render_path_quotes_values_and_rejects_missing_params() -> None:

@@ -101,6 +101,14 @@ class ZoomClient:
             oauth_url=oauth_url,
             token_skew_seconds=token_skew_seconds,
         )
+        if max_retries < 0:
+            raise ValueError("max_retries must be greater than or equal to 0.")
+        if backoff_base_seconds <= 0:
+            raise ValueError("backoff_base_seconds must be greater than 0.")
+        if backoff_max_seconds <= 0:
+            raise ValueError("backoff_max_seconds must be greater than 0.")
+        if timeout <= 0:
+            raise ValueError("timeout must be greater than 0.")
 
         self._base_url = settings.base_url.rstrip("/")
         self._pbx_base_url = settings.pbx_base_url.rstrip("/")
@@ -114,6 +122,7 @@ class ZoomClient:
         self._webhooks = webhook_registry or WebhookRegistry()
         self._http = http_client or httpx.Client()
         self._owns_http_client = http_client is None
+        self._default_account_id = settings.account_id
         self._sdk: ZoomSdk | None = None
         self._token_manager = OAuthTokenManager(
             http_client=self._http,
@@ -171,6 +180,12 @@ class ZoomClient:
         """Expose token acquisition for integration tests and advanced callers."""
 
         return self._token_manager.get_access_token(timeout=timeout)
+
+    @property
+    def default_account_id(self) -> str | None:
+        """Return the merged client account id used for account-scoped calls."""
+
+        return self._default_account_id
 
     @property
     def sdk(self) -> ZoomSdk:
@@ -442,16 +457,24 @@ class ZoomClient:
         """Create the final request headers, including Authorization."""
 
         access_token = self._token_manager.get_access_token(timeout=timeout)
-        merged_headers = httpx.Headers(
-            {
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/json",
-            }
-        )
+        merged_headers: dict[str, str] = {"Accept": "application/json"}
         if headers:
             for key, value in headers.items():
+                if key.lower() == "authorization":
+                    continue
+                existing_key = next(
+                    (
+                        existing_name
+                        for existing_name in merged_headers
+                        if existing_name.lower() == key.lower()
+                    ),
+                    None,
+                )
+                if existing_key is not None and existing_key != key:
+                    merged_headers.pop(existing_key)
                 merged_headers[key] = value
-        return dict(merged_headers)
+        merged_headers["Authorization"] = f"Bearer {access_token}"
+        return merged_headers
 
     def _parse_and_validate_response(
         self,

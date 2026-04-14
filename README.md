@@ -209,6 +209,13 @@ Secrets are intentionally never logged:
 - Authorization headers are never logged
 - raw bearer tokens are never logged
 
+Runtime configuration is also validated before the client sends requests:
+
+- `ZOOM_BASE_URL` and `ZOOM_OAUTH_URL` must use `https`
+- URLs with embedded credentials, query strings, or fragments are rejected
+- malformed `ZOOM_TOKEN_SKEW_SECONDS` values fail fast during startup
+- OAuth tokens are only cached when Zoom returns bearer tokens with usable expiry windows
+
 ### Retry and backoff
 
 Retries use the standard library only. The client retries:
@@ -732,7 +739,8 @@ request:
 - `ruff check .`
 - `mypy src _openapi_contract.py`
 - `python -m build`
-- `pytest -m "not integration"`
+- `pip-audit`
+- `pytest -m "not integration"` with a hard `--cov-fail-under=95` gate
 - documentation-site assembly with `scripts/build_docs.py`
 - `mkdocs build --strict`
 
